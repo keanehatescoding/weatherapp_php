@@ -23,10 +23,10 @@ This is a simple, responsive PHP weather application using OpenWeatherMap API to
 
 ### Pre-requites
    
-   #### Git
+#### Git
 - Ensure git is installed on your machine to clone this repo. The official installation page for git is [here](https://git-scm.com/downloads).
   
-   ### PHP HTTP Server
+#### PHP HTTP Server
 - This project uses PHP as it's backend therefore we need a server that can handle php files. You can install xammp or php >= 7 or any other http server that supports php.
 
 ### Installation Guide
