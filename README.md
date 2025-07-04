@@ -18,7 +18,7 @@ This is a simple, responsive PHP weather application using OpenWeatherMap API to
    - Uses a single API key under free tier limits ant therefore uses IP based rate limiting to minimize the number of Denial of Service Attacks and insane API usage bills.  
    - Avoids excessive polling; only fetches data on explicit form submission.
 
-▶️ ## Getting Started
+## ▶️ Getting Started
 
 ### Prerequites
 
