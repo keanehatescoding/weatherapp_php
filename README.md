@@ -17,17 +17,17 @@ This is a simple, responsive PHP weather application using OpenWeatherMap API to
 5. **Rate Limiting Awareness**  
    - Uses a single API key under free tier limits ant therefore uses IP based rate limiting to minimize the number of Denial of Service Attacks and insane API usage bills.  
    - Avoids excessive polling; only fetches data on explicit form submission.
+---
 
 ## ▶️ Getting Started
 
-### Prerequites
-
-    **Git**
+### Pre-requites
+   
+   #### Git
 - Ensure git is installed on your machine to clone this repo. The official installation page for git is [here](https://git-scm.com/downloads).
-
-    **PHP HTTP Server**
-- This project uses PHP as it's backend therefore we need a server that can handle php files. You can install xammp or php >= 7
-or any other http server that supports php.
+  
+   ### PHP HTTP Server
+- This project uses PHP as it's backend therefore we need a server that can handle php files. You can install xammp or php >= 7 or any other http server that supports php.
 
 ### Installation Guide
 
@@ -73,9 +73,13 @@ By using, modifying or distributing this software, you agree to all terms and co
 Tribute to [OpenWeatherMap.org](https://openweathermap.org) for their robuse and free tier API which has enabled us to build this project and learn a lot.
 
 Much appreciation to the following parties for their contribution.
-[@keanehatescoding](https://github.com/keanehatescoding)
-[@easter-m](https://github.com/easter-m)
-[yo-yo-05](https://github.com/yo-yo-05)
-[@Hopeyriizeis7](https://github.com/Hopeyriizeis7)
-[@mulle-emmanuel](https://github.com/mulle-emmanuel)
 
+[@keanehatescoding](https://github.com/keanehatescoding)
+
+[@easter-m](https://github.com/easter-m)
+
+[yo-yo-05](https://github.com/yo-yo-05)
+
+[@Hopeyriizeis7](https://github.com/Hopeyriizeis7)
+
+[@mulle-emmanuel](https://github.com/mulle-emmanuel)
