@@ -1,16 +1,124 @@
-body{
-     font-family: 'Satoshi', sans-serif;
+body {
+    font-family: 'Satoshi', sans-serif;
     background: linear-gradient(to bottom, #87ceeb, #f0f8ff);
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-self: center;
     min-height: 100vh;
 }
+
 .container {
-	text-align: center;
-	justify-content: center;
-	align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Weather card styling */
+.alert {
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.alert-info {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: none;
+    color: #333;
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.9);
+    border: none;
+    color: white;
+}
+
+/* Forecast container */
+.forecast-container {
+    margin-top: 2rem;
+}
+
+.forecast-container .row {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 10px;
+}
+
+@media (max-width: 991px) {
+    .forecast-container .row {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+    
+    .forecast-container .col-lg-1 {
+        flex: 0 0 auto;
+        min-width: 120px;
+    }
+}
+
+.forecast-item {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.forecast-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.weather-emoji {
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .forecast-item {
+        min-height: 140px;
+    }
+    
+    .weather-emoji {
+        font-size: 2rem;
+    }
+    
+    .container {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .forecast-item {
+        min-height: 120px;
+        padding: 0.5rem;
+    }
+    
+    .weather-emoji {
+        font-size: 1.5rem;
+    }
+    
+    .forecast-item h6 {
+        font-size: 0.9rem;
+    }
+    
+    .forecast-item p {
+        font-size: 0.8rem;
+    }
+}
+
+/* Text styling */
+h3, h4 {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.text-white {
+    color: white !important;
+    font-weight: 600;
+}
+
+.text-primary {
+    color: #0d6efd !important;
+    font-weight: 600;
 }
