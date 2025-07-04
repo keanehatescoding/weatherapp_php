@@ -54,6 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 	$city = urlencode(htmlspecialchars($city));
 
 	try { 
+		// This prevent hardcoding API_KEYS and leaking the OPENWEATHERMAP_API_KEY to production
 		$apiKey = getenv('OPENWEATHERMAP_API_KEY');
 		if(!$apiKey){
 			throw new Exception("API KEY not configured");
@@ -97,7 +98,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 		die('<div id="city-warning" class="alert alert-danger" role=alert"><p>Error occured: <b>' . $error  . ' </b><br></div>');
 	}
 } else {
-	$error = 'Method not allowed';
+	http_response_code(405);
+	$error = $_SERVER["REQUEST_METHOD"] . ' Method not allowed';
 	error_log("[" . date("Y-m-d H:i:s") . "] " . $error);
 	die('<div class="alert alert-danger" role="alert"><p><b>' . $error . '</b></p></div>');
 }
