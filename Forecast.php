@@ -55,7 +55,7 @@ public static function displayForecast($forecastData) : String{
 
 	// Create the html structure
 	$forecastHtml .= '<div class="forecast-container mt-4">';
-	$forecastHtml .= '<h3 class="text-center mb-3 text-white">5-Day Forecast</h3>';
+	$forecastHtml .= '<h3 class="text-center mb-3 text-white">7-Day Forecast</h3>';
 	$forecastHtml .= '<div class="row justify-content-center g-2">';
 
 	foreach ($dailyForecasts as $forecast) {
