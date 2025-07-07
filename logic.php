@@ -18,7 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 	if (!isset($_POST["city"]) || empty(trim($_POST["city"]))) {
 		$error = "You must enter a city";
 		error_log("[" . date("Y-m-d H:i:s") . "] " . $error);
-		die('<div id="city-warning" class="alert alert-danger text-center" role="alert"><p><b>' . $error . '</b></p></div>');
+		die('<div id="city-warning" class="alert alert-danger text-center" role="alert"><p><b>' . htmlspecialchars($error) . '</b></p></div>');
 	}
 	$city = trim($_POST["city"]);
 
@@ -26,7 +26,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 	if (!preg_match("/^[\p{L}\p{M}\s\.\'\-\(\)]{2,100}$/u", $city)) {
 		$error = "Invalid city name, it contains illegal characters";
 		error_log("[" . date("Y-m-d H:i:s") . "] " . $error);
-		die('<div id="city-warning" class="alert alert-danger text-center" role="alert"><p><b>' . $error . '</b></p></div>');
+		die('<div id="city-warning" class="alert alert-danger text-center" role="alert"><p><b>' . htmlspecialchars(error) . '</b></p></div>');
 	}
 
 	// Basic rate limiting, OpenWeatherMap API allows a maximum of 1000 request per day on the free tier, we therefore have to limit the number of requests to 15 for each user per day.
@@ -93,8 +93,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 		$weather .= '<h4 class="text-primary mb-3">'. htmlspecialchars($weather_Array['name']) . ", " . htmlspecialchars($weather_Array['sys']['country']) . '</h4>';
 		$weather .= '<div class="row text-center">';
 		$weather .= '<div class="col-md-6 mb-2">';
-		$weather .= '<p class="mb-1"><strong>Temperature:</strong> ' . intval($weather_Array['main']['temp']) . '°C</p>';
-		$weather .= '<p class="mb-1"><strong>Humidity:</strong> ' . intval($weather_Array['main']['humidity']) . '%</p>';
+		$weather .= '<p class="mb-1"><strong>Temperature:</strong> ' . htmlspecialchars(intval($weather_Array['main']['temp'])) . '°C</p>';
+		$weather .= '<p class="mb-1"><strong>Humidity:</strong> ' . htmlspecialchars(intval($weather_Array['main']['humidity'])) . '%</p>';
 		$weather .= '<p class="mb-1"><strong>Weather:</strong> ' . htmlspecialchars(ucfirst($weather_Array['weather']['0']['description'])) . '</p>';
 		$weather .= '</div>';
 		$weather .= '<div class="col-md-6 mb-2">';
@@ -104,13 +104,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 		$sunrise = $weather_Array['sys']['sunrise'];
 		$sunset = $weather_Array['sys']['sunset'];
 
-		$weather .= '<p class="mb-1"><strong>Sunrise:</strong> ' . date("g:i a", $sunrise) . '</p>';
-		$weather .= '<p class="mb-1"><strong>Sunset:</strong> ' . date("g:i a", $sunset) . '</p>';
+		$weather .= '<p class="mb-1"><strong>Sunrise:</strong> ' . htmlspecialchars(date("g:i a", $sunrise)) . '</p>';
+		$weather .= '<p class="mb-1"><strong>Sunset:</strong> ' . htmlspecialchars(date("g:i a", $sunset)) . '</p>';
 		$weather .= '</div>';
 		$weather .= '</div>';
 		$weather .= '<div class="mt-3">';
 		$weather .= '<div class="weather-emoji mb-2" style="font-size: 3rem;">' . htmlspecialchars(Icons::get($weather_Array['weather']['0']['icon'])) . '</div>';
-		$weather .= '<p class="text-muted mb-0"><strong>Current Time:</strong> ' . date("F j, Y, g:i a") . '</p>';
+		$weather .= '<p class="text-muted mb-0"><strong>Current Time:</strong> ' . htmlspecialchars(date("F j, Y, g:i a")) . '</p>';
 		$weather .= '</div>';
 		$weather .= '</div>';
 
@@ -118,15 +118,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 		echo Forecast::displayForecast($forecast_Array);
 
 	} catch(Exception $e) {
-		$error = htmlspecialchars($e->getMessage());
+		$error = $e->getMessage();
 		error_log("[" . date("Y-m-d H:i:s") . "] " . $error);
-		die('<div id="city-warning" class="alert alert-danger text-center" role="alert"><p><b>Error occurred: ' . $error . '</b></p></div>');
+		die('<div id="city-warning" class="alert alert-danger text-center" role="alert"><p><b>Error occurred: ' . htmlspecialchars($error) . '</b></p></div>');
 	}
 } else {
 	http_response_code(405);
 	$error = $_SERVER["REQUEST_METHOD"] . ' Method not allowed';
 	error_log("[" . date("Y-m-d H:i:s") . "] " . $error);
-	die('<div class="alert alert-danger text-center" role="alert"><p><b>' . $error . '</b></p></div>');
+	die('<div class="alert alert-danger text-center" role="alert"><p><b>' . htmlspecialchars($error) . '</b></p></div>');
 }
 ?>
 			</div>
