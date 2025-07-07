@@ -11,7 +11,7 @@
 	<div class="container py-4">
 		<div class="row justify-content-center">
 			<div class="col-md-10 col-lg-8">
-<?php
+<?phpdeclare(strict type=1);
 require_once "Icons.php";
 require_once "Forecast.php";
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
