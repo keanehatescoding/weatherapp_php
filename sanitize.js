@@ -20,3 +20,4 @@ function sanitizeCityName(input) {
 		.replace(/[^A-Za-z\u00C0-\u017F\s.'\-]/g, '') // allow letters (incl. accents), spaces, period, apostrophe, hyphen
 			.replace(/\s{2,}/g, ' ')
 		}
+}

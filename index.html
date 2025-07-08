@@ -5,19 +5,21 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
 		<link rel="stylesheet" href="styles.css">
-		<title> WeatherApp </title> 
+		<title>🌤️ WeatherApp </title> 
 	</head>
 	<body>
-		<div class="container">
+		<div class="container" style="max-width: 500px; margin: 0 auto;">
+			<h3>🌤️ WeatherApp </h3>
 			<form action="logic.php" method="POST">
 				<input type="text" name="city" placeholder="Enter city"  id="city" required>
-				<button type="submit" class="btn btn-success">Get Weather</button>
+				<button type="submit" class="btn btn-success">Get Weather 🔍</button>
 			</form>
 
 			<div id="city-warning" class="alert alert-danger mt-2" role="alert" style="display: none;">
-				Some characters are not allowed and have been removed.
+				Only letters, spaces, hyphens apostrophes are allowed
 			</div>
 		</div>
 
 		<script src="sanitize.js"></script>
+	</body>
 </html>
