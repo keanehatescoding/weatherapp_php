@@ -5,12 +5,19 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Weather App</title>
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+	<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
 	<link href="styles.css" rel="stylesheet">
 </head>
 <body>
 	<div class="container py-4">
 		<div class="row justify-content-center">
 			<div class="col-md-10 col-lg-8">
+				<!-- Back Button -->
+				<div class="mb-4">
+					<a href="index.html" class="btn btn-outline-primary">
+						← Back to Search
+					</a>
+				</div>
 <?php
 require_once "Icons.php";
 require_once "Forecast.php";
@@ -26,7 +33,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 	if (!preg_match("/^[\p{L}\p{M}\s\.\'\-\(\)]{2,100}$/u", $city)) {
 		$error = "Invalid city name, it contains illegal characters";
 		error_log("[" . date("Y-m-d H:i:s") . "] " . $error);
-		die('<div id="city-warning" class="alert alert-danger text-center" role="alert"><p><b>' . htmlspecialchars(error) . '</b></p></div>');
+		die('<div id="city-warning" class="alert alert-danger text-center" role="alert"><p><b>' . htmlspecialchars($error) . '</b></p></div>');
 	}
 
 	// Basic rate limiting, OpenWeatherMap API allows a maximum of 1000 request per day on the free tier, we therefore have to limit the number of requests to 15 for each user per day.
@@ -89,8 +96,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 		}
 
 		// Current weather display
-		$weather = '<div class="alert alert-info text-center mb-4 bg-white bg-opacity-90 border-0 shadow" role="alert">';
-		$weather .= '<h4 class="text-primary mb-3">'. htmlspecialchars($weather_Array['name']) . ", " . htmlspecialchars($weather_Array['sys']['country']) . '</h4>';
+		$weather = '<div class="alert alert-info text-center mb-4 bg-white bg-opacity-90 border-0 shadow-lg" role="alert">';
+		$weather .= '<h4 class="text-primary mb-3 fw-bold">'. htmlspecialchars($weather_Array['name']) . ", " . htmlspecialchars($weather_Array['sys']['country']) . '</h4>';
 		$weather .= '<div class="row text-center">';
 		$weather .= '<div class="col-md-6 mb-2">';
 		$weather .= '<p class="mb-1"><strong>Temperature:</strong> ' . htmlspecialchars(intval($weather_Array['main']['temp'])) . '°C</p>';

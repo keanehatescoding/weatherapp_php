@@ -26,7 +26,8 @@ Class Forecast {
  * @throws InvalidArgumentException If forecast data is invalid or missing required fields
  * 
  * @example
- *   * ```php
+ * 
+ * ```php
  * $forecastData = json_decode($apiResponse, true);
  * $forecastHtml = Forecast::displayForecast($forecastData);
  * echo $forecastHtml;
@@ -66,8 +67,9 @@ public static function displayForecast($forecastData) : String{
 		$iconCode = $forecast['weather'][0]['icon'];
 		$emoji = Icons::get($iconCode);
 
-		$forecastHtml .= '<div class="col-lg-1 col-md-2 col-sm-3 col-6 mb-3">';
-		$forecastHtml .= '<div class="forecast-item text-center p-3 border rounded bg-white bg-opacity-90 shadow-sm">';
+		// Updated responsive column classes to prevent squishing
+		$forecastHtml .= '<div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-3">';
+		$forecastHtml .= '<div class="forecast-item text-center p-3 border rounded bg-white bg-opacity-90 shadow-sm h-100">';
 		$forecastHtml .= '<h6 class="fw-bold text-dark mb-2">' . htmlspecialchars($dayName) . '</h6>';
 		$forecastHtml .= '<div class="weather-emoji mb-2" style="font-size: 2.5rem;">' . $emoji . '</div>';
 		$forecastHtml .= '<p class="mb-1 text-dark"><strong>' . intval($temp) . '°/' . intval($tempMin) . '°</strong></p>';

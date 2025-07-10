@@ -43,6 +43,11 @@ To be able to send and receive weather information you need an API key. Navigate
 ```bash
 export OPENWEATHER_API_KEY="* your API key here *"
 ```
+ON Windows
+``` powershell
+[Environment]::SetEnvironmentVariable("OPENWEATHERMAP_API_KEY", "YOUR_API_KEY", "User")
+```
+
 If you have xammpp you can move all this files to /htdocs directory in xammpp while if you have php>= 7 then just type
 ```
 php -S localhost:8000
