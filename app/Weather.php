@@ -14,6 +14,13 @@ require_once __DIR__ . '/../utils.php';
 
 class RateLimitExceededException extends RuntimeException {}
 
+/**
+ * An exception whose message is safe to show to the end user.
+ * Distinct from a generic Throwable so the controller can surface the
+ * message directly instead of a generic "something went wrong" page.
+ */
+class UserFacingException extends RuntimeException {}
+
 /** Centralised API interaction + caching logic. */
 class Weather {
 	/** @var int max requests per IP per window */

@@ -59,7 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 		$apiKey = getenv('OPENWEATHERMAP_API_KEY');
 		if ($apiKey === false || $apiKey === '') {
-			throw new RuntimeException('API key not configured.');
+			throw new UserFacingException(
+				'Weather API key is not configured. Set the OPENWEATHERMAP_API_KEY environment variable.'
+			);
 		}
 
 		// --- Current weather ---
@@ -71,9 +73,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 		[$status, $currentData] = Weather::fetchJson($currentUrl);
 		if ($status !== 200) {
-			throw new RuntimeException(
-				$currentData['message'] ?? "Weather service returned HTTP $status."
-			);
+			Weather::log("Current weather API HTTP $status: " . ($currentData['message'] ?? ''), $ip, $city);
+			if ($status === 401) {
+				throw new UserFacingException(
+					'Weather API key was rejected by the provider. Verify your OPENWEATHERMAP_API_KEY.'
+				);
+			}
+			if ($status === 404) {
+				throw new UserFacingException('City not found. Please check the spelling and try again.');
+			}
+			throw new UserFacingException('Weather service is temporarily unavailable. Please try again later.');
 		}
 
 		$weatherHtml = '';
@@ -133,9 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		try {
 			[$fStatus, $forecastData] = Weather::fetchJson($forecastUrl);
 			if ($fStatus !== 200) {
-				throw new RuntimeException($forecastData['message'] ?? "Forecast service returned HTTP $fStatus.");
+				Weather::log("Forecast API HTTP $fStatus: " . ($forecastData['message'] ?? ''), $ip, $city);
+				throw new UserFacingException('Could not load the extended forecast right now. Try again later.');
 			}
 			$content .= Forecast::displayForecast($forecastData);
+		} catch (UserFacingException $e) {
+			// Forecast-specific, user-safe message (e.g. unavailable). Keep the
+			// current weather panel which already rendered above.
+			$content .= '<p class="text-center text-muted mt-3 mb-0">' . Weather::esc($e->getMessage()) . '</p>';
 		} catch (Throwable $e) {
 			Weather::log('Forecast fetch failed: ' . $e->getMessage(), $ip, $city);
 			$content .= '<p class="text-center text-muted mt-3 mb-0">'
@@ -146,6 +160,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	} catch (RateLimitExceededException $e) {
 		$statusCode = 429;
 		Weather::log('Rate limit exceeded', $ip);
+		$content .= Weather::errorAlert($e->getMessage());
+	} catch (UserFacingException $e) {
+		$statusCode = 400;
+		Weather::log('User-facing error: ' . $e->getMessage(), $ip, $city ?? '');
 		$content .= Weather::errorAlert($e->getMessage());
 	} catch (InvalidArgumentException $e) {
 		Weather::log('Validation error: ' . $e->getMessage(), $ip, $city ?? '');
