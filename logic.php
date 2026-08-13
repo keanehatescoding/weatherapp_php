@@ -213,4 +213,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"></script>
 </body>
 </html>
-<?php http_response_code($statusCode); ?>
+<?php
+// Security & caching headers — must be emitted before any HTML body.
+header('Content-Type: text/html; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header("Content-Security-Policy: "
+	. "default-src 'self'; "
+	. "style-src 'self' https://cdn.jsdelivr.net https://api.fontshare.com 'unsafe-inline'; "
+	. "script-src 'self' https://cdn.jsdelivr.net; "
+	. "font-src 'self' https://api.fontshare.com; "
+	. "img-src 'self' data:; "
+	. "connect-src 'self'");
+http_response_code($statusCode);
+?>
