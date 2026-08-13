@@ -25,6 +25,15 @@
                         <label for="city" class="form-label fw-semibold">Enter City Name</label>
                         <input type="text" name="city" placeholder="e.g., Nairobi, Mombasa, Kisumu" id="city" class="form-control form-control-lg" required>
                     </div>
+                    <div class="mb-3 d-flex gap-2 justify-content-center align-items-center">
+                        <span class="fw-semibold">Units:</span>
+                        <div class="btn-group" role="group" aria-label="Temperature units">
+                            <input type="radio" class="btn-check" name="unit" id="unit-c" value="metric" autocomplete="off" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="unit-c">°C</label>
+                            <input type="radio" class="btn-check" name="unit" id="unit-f" value="imperial" autocomplete="off">
+                            <label class="btn btn-outline-secondary btn-sm" for="unit-f">°F</label>
+                        </div>
+                    </div>
                     <button type="submit" id="submit-btn" class="btn btn-success btn-lg w-100 fw-semibold">
                         Get Weather 🔍
                     </button>

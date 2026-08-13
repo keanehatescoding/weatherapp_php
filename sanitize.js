@@ -40,6 +40,26 @@
 			})
 			.catch(function () { /* server-side still validates */ });
 	}
+
+	// Temperature unit preference (°C / °F), persisted across visits.
+	const unitRadios = form.querySelectorAll('input[name="unit"]');
+	const resultBox = document.getElementById('weather-result');
+	const storedUnit = (typeof localStorage !== 'undefined') ? localStorage.getItem('weather_unit') : null;
+	unitRadios.forEach(function (r) {
+		if (storedUnit && r.value === storedUnit) { r.checked = true; }
+	});
+	unitRadios.forEach(function (r) {
+		r.addEventListener('change', function () {
+			if (typeof localStorage !== 'undefined') {
+				localStorage.setItem('weather_unit', r.value);
+			}
+			// Re-run the search with the new units if a result is shown.
+			if (resultBox && resultBox.innerHTML.trim() !== '') {
+				if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
+				else { form.submit(); }
+			}
+		});
+	});
 	form.addEventListener('submit', function (e) {
 		e.preventDefault();
 		const btn = this.querySelector('button[type="submit"]');

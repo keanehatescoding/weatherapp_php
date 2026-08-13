@@ -32,7 +32,8 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $ip      = Weather::clientIp();
 $apiKey  = getenv('OPENWEATHERMAP_API_KEY');
-$weather = new Weather($ip, $apiKey === false ? '' : (string)$apiKey);
+$units   = ($_POST['unit'] ?? 'metric') === 'imperial' ? 'imperial' : 'metric';
+$weather = new Weather($ip, $apiKey === false ? '' : (string)$apiKey, '', $units);
 
 // --- Request handling ----------------------------------------------------
 $content     = '';
