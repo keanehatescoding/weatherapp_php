@@ -10,8 +10,13 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/app/Weather.php';
+require_once __DIR__ . '/app/Env.php';
 require_once __DIR__ . '/Icons.php';
 require_once __DIR__ . '/Forecast.php';
+
+// Load configuration from a local .env file (if present). Real environment
+// variables always take precedence over values defined in .env.
+loadEnvFile();
 
 /*
  * Session MUST be started before ANY output is emitted, otherwise PHP cannot
