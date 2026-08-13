@@ -14,6 +14,9 @@ require_once __DIR__ . '/../utils.php';
 
 class RateLimitExceededException extends RuntimeException {}
 
+/** Thrown when a CSRF token check fails. */
+class CsrfException extends UserFacingException {}
+
 /**
  * An exception whose message is safe to show to the end user.
  * Distinct from a generic Throwable so the controller can surface the
@@ -101,6 +104,41 @@ class Weather {
 	public static function log(string $message, string $ip = 'unknown', string $city = ''): void {
 		$ctx = $city !== '' ? " city=\"$city\"" : '';
 		error_log(sprintf('[%s] [%s]%s %s', date('c'), $ip, $ctx, $message));
+	}
+
+	/**
+	 * Return (generating if needed) the per-session CSRF token.
+	 */
+	public static function csrfToken(): string {
+		if (session_status() === PHP_SESSION_NONE) {
+			session_start([
+				'cookie_httponly' => true,
+				'cookie_samesite' => 'Lax',
+				'use_strict_mode' => true,
+			]);
+		}
+		if (empty($_SESSION['csrf_token'])) {
+			$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+		}
+		return $_SESSION['csrf_token'];
+	}
+
+	/**
+	 * Validate a submitted CSRF token against the session token.
+	 */
+	public static function validateCsrf(?string $token): bool {
+		if (session_status() === PHP_SESSION_NONE) {
+			session_start([
+				'cookie_httponly' => true,
+				'cookie_samesite' => 'Lax',
+				'use_strict_mode' => true,
+			]);
+		}
+		$expected = $_SESSION['csrf_token'] ?? '';
+		if ($expected === '' || $token === null || $token === '') {
+			return false;
+		}
+		return hash_equals($expected, $token);
 	}
 
 	/**

@@ -20,6 +20,7 @@
         <div class="card shadow-lg border-0 search-container">
             <div class="card-body p-4">
                 <form action="logic.php" method="POST">
+                    <input type="hidden" name="csrf" id="csrf-token" value="">
                     <div class="mb-3">
                         <label for="city" class="form-label fw-semibold">Enter City Name</label>
                         <input type="text" name="city" placeholder="e.g., Nairobi, Mombasa, Kisumu" id="city" class="form-control form-control-lg" required>

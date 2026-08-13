@@ -30,7 +30,16 @@
 		this.value = sanitized;
 	});
 
-	// Prevent double submissions (and thus duplicate API calls)
+	// Fetch a CSRF token and embed it in the form before submit.
+	const csrfInput = document.getElementById('csrf-token');
+	if (csrfInput && 'fetch' in window) {
+		fetch('csrf.php', { credentials: 'same-origin' })
+			.then(function (r) { return r.json(); })
+			.then(function (data) {
+				if (data && data.token) { csrfInput.value = data.token; }
+			})
+			.catch(function () { /* server-side still validates */ });
+	}
 	form.addEventListener('submit', function () {
 		const btn = this.querySelector('button[type="submit"]');
 		if (btn) {

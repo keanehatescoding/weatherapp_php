@@ -42,6 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	$content    = Weather::errorAlert('Method ' . $_SERVER['REQUEST_METHOD'] . ' not allowed.');
 } else {
 	try {
+		// CSRF protection (token issued by csrf.php, embedded by JS).
+		if (!Weather::validateCsrf($_POST['csrf'] ?? null)) {
+			throw new CsrfException('Security check failed. Refresh the page and try again.');
+		}
+
 		// Input handling
 		$city = trim((string)($_POST['city'] ?? ''));
 		if ($city === '') {
@@ -160,6 +165,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	} catch (RateLimitExceededException $e) {
 		$statusCode = 429;
 		Weather::log('Rate limit exceeded', $ip);
+		$content .= Weather::errorAlert($e->getMessage());
+	} catch (CsrfException $e) {
+		$statusCode = 403;
+		Weather::log('CSRF validation failed', $ip);
 		$content .= Weather::errorAlert($e->getMessage());
 	} catch (UserFacingException $e) {
 		$statusCode = 400;
