@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: curl
+          coverage: none
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Lint PHP files (syntax)
+        run: |
+          for f in *.php app/*.php tests/*.php; do
+            php -l "$f"
+          done
+
+      - name: Lint JavaScript
+        run: node --check sanitize.js
+
+      - name: Run PHP unit tests
+        env:
+          OPENWEATHERMAP_API_KEY: dummy-ci-key
+        run: php tests/test_weather.php
+
+      - name: Run PHP HTTP integration tests
+        env:
+          OPENWEATHERMAP_API_KEY: dummy-ci-key
+        run: php tests/test_http.php
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for leftover secrets / obvious issues
+        run: |
+          echo "Scanning for accidentally committed API keys..."
+          if grep -rIln "OPENWEATHERMAP_API_KEY=\|appid=[A-Za-z0-9]\{20,\}" --include="*.php" . ; then
+            echo "::warning::Possible API key in source — verify it's not a real secret."
+          else
+            echo "No API keys found in source."
+          fi

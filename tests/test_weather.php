@@ -1,0 +1,77 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Unit tests for the Weather core service (app/Weather.php).
+ *
+ * Run: php tests/test_weather.php
+ */
+require_once __DIR__ . '/../app/Weather.php';
+require_once __DIR__ . '/../Icons.php';
+require_once __DIR__ . '/../Forecast.php';
+
+$failures = 0;
+function check(bool $cond, string $label): void {
+    global $failures;
+    if ($cond) {
+        echo "ok:   $label\n";
+    } else {
+        echo "FAIL: $label\n";
+        $failures++;
+    }
+}
+
+// --- Icons ---
+check(Icons::get('02d') === '🌤️', 'few clouds day icon');
+check(Icons::get('01d') === '☀️', 'clear sky day');
+check(Icons::get('zzz') === '🌡️', 'unknown icon falls back');
+
+// --- Forecast validation ---
+try {
+    Forecast::displayForecast(['notlist' => true]);
+    check(false, 'forecast should reject bad payload');
+} catch (InvalidArgumentException $e) {
+    check(true, 'forecast rejects malformed payload');
+}
+
+// --- Forecast renders sample data ---
+$tomorrow = strtotime('+1 day', time());
+$dayAfter = strtotime('+2 days', time());
+$sample = [
+    'list' => [
+        ['dt' => $tomorrow, 'main' => ['temp' => 22, 'temp_min' => 18], 'weather' => [['description' => 'clear sky', 'icon' => '01d']]],
+        ['dt' => $dayAfter, 'main' => ['temp' => 23, 'temp_min' => 19], 'weather' => [['description' => 'few clouds', 'icon' => '02d']]],
+    ],
+];
+$out = Forecast::displayForecast($sample);
+check(str_contains($out, 'Day Forecast'), 'forecast contains heading');
+check(str_contains($out, '🌤️') || str_contains($out, '☀️'), 'forecast contains an emoji');
+check(str_contains($out, '°/'), 'forecast shows temp range');
+
+// --- Weather::esc() ---
+$escapedScript = '&lt;script&gt;';  // literal <script>
+check(Weather::esc('<script>') === $escapedScript, 'esc escapes angle brackets');
+check(str_contains(Weather::esc('é'), 'é'), 'esc keeps accented letters');
+
+// --- City regex (mirror of logic.php) ---
+$regex = '/^[\p{L}\p{M}\s.\'\-()]{2,100}$/uD';
+foreach (['Nairobi', 'São Paulo', 'København', "O'Brien", 'St. Louis', 'Washington D.C.'] as $city) {
+    check(preg_match($regex, $city) === 1, "city accepts '$city'");
+}
+foreach (['', 'a', 'City7', 'x<>;', 'SELECT * FROM users', 'a'.str_repeat('b', 200)] as $bad) {
+    check(preg_match($regex, $bad) === 0, "city rejects '$bad'");
+}
+// Chinese city names ARE accepted by \p{L} — this is intentional
+check(preg_match($regex, '北京') === 1, "city accepts '北京' (CJK letters are \p{L})");
+
+// --- Weather::log() just exercises the code path (output goes to error_log) ---
+Weather::log('test message', '127.0.0.1', 'TestCity');
+check(true, 'log() runs without throwing');
+
+// --- Weather::errorAlert() ---
+$alert = Weather::errorAlert('Test error');
+check(str_contains($alert, 'Test error'), 'errorAlert includes message');
+check(str_contains($alert, 'alert-danger'), 'errorAlert has danger class');
+
+echo "\n" . ($failures === 0 ? "ALL UNIT TESTS PASSED\n" : "$failures FAILURE(S)\n");
+exit($failures === 0 ? 0 : 1);

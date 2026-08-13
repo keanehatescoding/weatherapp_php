@@ -1,0 +1,4 @@
+# Runtime / environment data
+/var/
+.env
+*.log

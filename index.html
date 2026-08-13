@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <title>🌤️ WeatherApp</title>
+<style>.search-container { max-width: 500px; margin: 0 auto; }</style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-center mb-4">
+            <h3 class="display-6 fw-bold text-primary mb-2">🌤️ WeatherApp</h3>
+            <p class="text-muted">Get weather information for any city</p>
+        </div>
+        
+        <div class="card shadow-lg border-0 search-container">
+            <div class="card-body p-4">
+                <form action="logic.php" method="POST">
+                    <div class="mb-3">
+                        <label for="city" class="form-label fw-semibold">Enter City Name</label>
+                        <input type="text" name="city" placeholder="e.g., Nairobi, Mombasa, Kisumu" id="city" class="form-control form-control-lg" required>
+                    </div>
+                    <button type="submit" id="submit-btn" class="btn btn-success btn-lg w-100 fw-semibold">
+                        Get Weather 🔍
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div id="city-warning" class="alert alert-danger mt-3" role="alert" style="display: none;">
+            Only letters, spaces, hyphens apostrophes are allowed
+        </div>
+    </div>
+
+    <script src="sanitize.js"></script>
+</body>
+</html>
