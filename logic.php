@@ -168,6 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		Weather::log('User-facing error: ' . $e->getMessage(), $ip, $city ?? '');
 		$content .= Weather::errorAlert($e->getMessage());
 	} catch (InvalidArgumentException $e) {
+		$statusCode = 400;
 		Weather::log('Validation error: ' . $e->getMessage(), $ip, $city ?? '');
 		$content .= Weather::errorAlert($e->getMessage());
 	} catch (Throwable $e) {
