@@ -49,17 +49,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 			throw new CsrfException('Security check failed. Refresh the page and try again.');
 		}
 
-		// Input handling
+		// Input handling — coordinates (geolocation) take precedence over city.
 		$city = trim((string)($_POST['city'] ?? ''));
-		if ($city === '') {
-			throw new InvalidArgumentException('You must enter a city.');
-		}
-		// Mirrors sanitize.js — letters (any script, incl. accents),
-		// spaces, . ' - ( ). 2–100 chars. 'D' = strict $ anchor.
-		if (!preg_match('/^[\p{L}\p{M}\s.\'\-()]{2,100}$/uD', $city)) {
-			throw new InvalidArgumentException(
-				'Invalid city name — only letters, spaces, and ( ) - . \' are allowed.'
-			);
+		$lat  = filter_var($_POST['lat'] ?? '', FILTER_VALIDATE_FLOAT);
+		$lon  = filter_var($_POST['lon'] ?? '', FILTER_VALIDATE_FLOAT);
+		$usingCoords = $lat !== false && $lon !== false
+			&& abs($lat) <= 90 && abs($lon) <= 180;
+
+		if (!$usingCoords) {
+			if ($city === '') {
+				throw new InvalidArgumentException('You must enter a city.');
+			}
+			// Mirrors sanitize.js — letters (any script, incl. accents),
+			// spaces, . ' - ( ). 2–100 chars. 'D' = strict $ anchor.
+			if (!preg_match('/^[\p{L}\p{M}\s.\'\-()]{2,100}$/uD', $city)) {
+				throw new InvalidArgumentException(
+					'Invalid city name — only letters, spaces, and ( ) - . \' are allowed.'
+				);
+			}
 		}
 
 		$weather->enforceRateLimit();
@@ -71,8 +78,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 			);
 		}
 
-		// --- Geocode + One Call 3.0 (current weather + 7-day forecast) ---
-		$meta       = $weather->fetchByCity($city);
+		// --- Current weather + 7-day forecast ---
+		// Prefer explicit coordinates (geolocation); otherwise resolve the city.
+		$meta = $usingCoords
+			? $weather->fetchByCoords($lat, $lon)
+			: $weather->fetchByCity($city);
 		$current    = $meta['current'];
 		$tzOff      = $meta['timezone_offset'];
 		$name       = $meta['name'];

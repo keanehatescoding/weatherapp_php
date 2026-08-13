@@ -1,7 +1,7 @@
 # PHP Weather App
 
 ## Description
-This is a simple, responsive PHP weather application using the OpenWeatherMap One Call 3.0 API to fetch and display current conditions and a 7-day forecast for any location supported by the OpenWeatherMap API.
+This is a simple, responsive PHP weather application using the OpenWeatherMap One Call 3.0 API to fetch and display current conditions and a 7-day forecast for any location supported by the OpenWeatherMap API. You can search by city name or use the **📍 Use my location** button to fetch weather for your current coordinates.
 
 ## 🔧 Features
 

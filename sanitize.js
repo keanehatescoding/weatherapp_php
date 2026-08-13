@@ -4,6 +4,10 @@
 	const cityInput = document.getElementById('city');
 	const warning = document.getElementById('city-warning');
 	const form = cityInput && cityInput.closest('form');
+	const latInput = document.getElementById('lat');
+	const lonInput = document.getElementById('lon');
+	const geoBtn = document.getElementById('geo-btn');
+	let geoCoords = null; // {lat, lon} when the user opted into geolocation
 
 	if (!cityInput || !warning || !form) {
 		return; // page structure missing; server-side validation still protects us
@@ -28,9 +32,46 @@
 		const sanitized = sanitizeCityName(original);
 		warning.style.display = original === sanitized ? 'none' : 'block';
 		this.value = sanitized;
+		// Typing a city cancels any pending geolocation choice.
+		if (sanitized !== '') {
+			geoCoords = null;
+			this.required = true;
+			if (latInput) { latInput.value = ''; }
+			if (lonInput) { lonInput.value = ''; }
+		}
 	});
 
-	// Fetch a CSRF token and embed it in the form before submit.
+	// Geolocation: ask the browser for coordinates and submit by lat/lon.
+	if (geoBtn) {
+		geoBtn.addEventListener('click', function () {
+			if (!('geolocation' in navigator)) {
+				warning.textContent = 'Geolocation is not supported by your browser. Search by city name.';
+				warning.style.display = 'block';
+				return;
+			}
+			geoBtn.disabled = true;
+			geoBtn.textContent = '📍 Locating…';
+			navigator.geolocation.getCurrentPosition(
+				function (pos) {
+					geoCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+					cityInput.required = false;
+					cityInput.value = '';
+					if (latInput) { latInput.value = pos.coords.latitude; }
+					if (lonInput) { lonInput.value = pos.coords.longitude; }
+					if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
+					else { form.submit(); }
+				},
+				function () {
+					warning.textContent = 'Could not get your location. Allow access or search by city name.';
+					warning.style.display = 'block';
+					geoBtn.disabled = false;
+					geoBtn.textContent = '📍 Use my location';
+				},
+				{ timeout: 10000, enableHighAccuracy: false }
+			);
+		});
+	}
+
 	const csrfInput = document.getElementById('csrf-token');
 	if (csrfInput && 'fetch' in window) {
 		fetch('csrf.php', { credentials: 'same-origin' })
@@ -41,7 +82,7 @@
 			.catch(function () { /* server-side still validates */ });
 	}
 
-	// Temperature unit preference (°C / °F), persisted across visits.
+	// Fetch a CSRF token and embed it in the form before submit.
 	const unitRadios = form.querySelectorAll('input[name="unit"]');
 	const resultBox = document.getElementById('weather-result');
 	const storedUnit = (typeof localStorage !== 'undefined') ? localStorage.getItem('weather_unit') : null;
@@ -68,9 +109,18 @@
 			btn.textContent = 'Fetching… ⏳';
 		}
 
+		const latVal = latInput ? latInput.value : '';
+		const lonVal = lonInput ? lonInput.value : '';
 		const cityVal = cityInput.value;
 		const tokenInput = document.getElementById('csrf-token');
 		const token = tokenInput ? tokenInput.value : '';
+
+		let body = 'city=' + encodeURIComponent(cityVal) + '&csrf=' + encodeURIComponent(token);
+		if (geoCoords || (latVal !== '' && lonVal !== '')) {
+			const lat = geoCoords ? geoCoords.lat : latVal;
+			const lon = geoCoords ? geoCoords.lon : lonVal;
+			body += '&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon);
+		}
 
 		fetch('logic.php', {
 			method: 'POST',
@@ -97,6 +147,10 @@
 				if (btn) {
 					btn.disabled = false;
 					btn.textContent = 'Get Weather 🔍';
+				}
+				if (geoBtn) {
+					geoBtn.disabled = false;
+					geoBtn.textContent = '📍 Use my location';
 				}
 			});
 	});

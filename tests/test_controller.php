@@ -116,6 +116,16 @@ check($code === 400 && str_contains($body, 'Invalid city name'), 'invalid city r
 check($code === 400 && str_contains($body, 'API key is not configured'), 'missing API key surfaced safely');
 check(!str_contains($body, '* your API key'), 'API key placeholder not echoed to user');
 
+// 6) POST lat/lon (geolocation) without a city -> reaches API-key check,
+//    not the "enter a city" requirement.
+[$code, $body] = req($base, $cookie, 'POST', '/logic.php', ['lat' => '12.34', 'lon' => '56.78', 'csrf' => $token]);
+check($code === 400 && str_contains($body, 'API key is not configured'), 'geolocation (lat/lon) skips city requirement');
+check(!str_contains($body, 'You must enter a city'), 'geolocation path does not ask for a city');
+
+// 7) POST out-of-range coords -> falls back to the city requirement.
+[$code, $body] = req($base, $cookie, 'POST', '/logic.php', ['lat' => '999', 'lon' => '999', 'csrf' => $token]);
+check($code === 400 && str_contains($body, 'You must enter a city'), 'invalid coordinates fall back to city requirement');
+
 proc_terminate($proc);
 proc_close($proc);
 @unlink($cookie);
