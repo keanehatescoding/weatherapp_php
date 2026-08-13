@@ -201,6 +201,16 @@ class Weather {
 	}
 
 	/**
+	 * Set the HTTP response code, but only if headers haven't been sent yet
+	 * (avoids warnings when called from CLI/tests after output).
+	 */
+	private static function sendResponseCode(int $code): void {
+		if (!headers_sent()) {
+			@http_response_code($code);
+		}
+	}
+
+	/**
 	 * Per-IP rate limiting.
 	 *
 	 * Uses a file-based store keyed by IP in ./var/ratelimit when writable
@@ -237,7 +247,7 @@ class Weather {
 			if (count($hits) >= self::RATE_LIMIT_MAX) {
 				$retry = max(1, ((int)$hits[0] + self::RATE_LIMIT_WINDOW) - $now);
 				self::sendRetryAfter($retry);
-				http_response_code(429);
+				self::sendResponseCode(429);
 				throw new RateLimitExceededException(
 					'We only allow ' . self::RATE_LIMIT_MAX . ' requests per day. Try again later.'
 				);
@@ -259,7 +269,7 @@ class Weather {
 		if (count($byIp) >= self::RATE_LIMIT_MAX) {
 			$retry = max(1, ((int)($byIp[0] ?? $now) + self::RATE_LIMIT_WINDOW) - $now);
 			self::sendRetryAfter($retry);
-			http_response_code(429);
+			self::sendResponseCode(429);
 			throw new RateLimitExceededException(
 				'We only allow ' . self::RATE_LIMIT_MAX . ' requests per day. Try again later.'
 			);
