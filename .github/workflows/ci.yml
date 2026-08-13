@@ -39,21 +39,15 @@ jobs:
         run: node --check sanitize.js
 
       - name: Run PHP unit tests
-        env:
-          OPENWEATHERMAP_API_KEY: dummy-ci-key
         run: |
           php tests/test_weather.php
           php tests/test_ratelimit.php
           php tests/test_onecall.php
 
       - name: Run PHP HTTP integration tests (APCu cache path enabled)
-        env:
-          OPENWEATHERMAP_API_KEY: dummy-ci-key
         run: php tests/test_http.php
 
       - name: Run controller integration tests
-        env:
-          OPENWEATHERMAP_API_KEY: dummy-ci-key
         run: php tests/test_controller.php
 
   quality:
