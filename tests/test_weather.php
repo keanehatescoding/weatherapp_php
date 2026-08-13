@@ -58,7 +58,7 @@ $regex = '/^[\p{L}\p{M}\s.\'\-()]{2,100}$/uD';
 foreach (['Nairobi', 'São Paulo', 'København', "O'Brien", 'St. Louis', 'Washington D.C.'] as $city) {
     check(preg_match($regex, $city) === 1, "city accepts '$city'");
 }
-foreach (['', 'a', 'City7', 'x<>;', 'SELECT * FROM users', 'a'.str_repeat('b', 200)] as $bad) {
+foreach (['', 'a', 'City7', 'x<>;', 'SELECT * FROM users', 'a' . str_repeat('b', 200)] as $bad) {
     check(preg_match($regex, $bad) === 0, "city rejects '$bad'");
 }
 // Chinese city names ARE accepted by \p{L} — this is intentional

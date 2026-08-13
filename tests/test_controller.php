@@ -11,9 +11,9 @@ declare(strict_types=1);
 
 $failures = 0;
 function check(bool $cond, string $label): void {
-	global $failures;
-	if ($cond) { echo "ok:   $label\n"; }
-	else { echo "FAIL: $label\n"; $failures++; }
+    global $failures;
+    if ($cond) { echo "ok:   $label\n"; }
+    else { echo "FAIL: $label\n"; $failures++; }
 }
 
 // Start a throwaway server (array command => no shell, so proc_terminate
@@ -21,40 +21,40 @@ function check(bool $cond, string $label): void {
 $port = 8851;
 $root = dirname(__DIR__); // project root (not tests/)
 $proc = proc_open(
-	['php', '-S', '127.0.0.1:' . $port, '-t', $root],
-	[
-		0 => ['pipe', 'r'],
-		1 => ['file', '/dev/null', 'w'],
-		2 => ['file', '/dev/null', 'w'],
-	],
-	$pipes
+    ['php', '-S', '127.0.0.1:' . $port, '-t', $root],
+    [
+        0 => ['pipe', 'r'],
+        1 => ['file', '/dev/null', 'w'],
+        2 => ['file', '/dev/null', 'w'],
+    ],
+    $pipes
 );
 if (!is_resource($proc)) {
-	echo "FAIL: could not start server\n";
-	exit(1);
+    echo "FAIL: could not start server\n";
+    exit(1);
 }
 register_shutdown_function(static function () use ($proc) {
-	if (is_resource($proc)) {
-		@proc_terminate($proc);
-		@proc_close($proc);
-	}
+    if (is_resource($proc)) {
+        @proc_terminate($proc);
+        @proc_close($proc);
+    }
 });
 
 // Wait for the server to accept connections (max ~5s).
 $ready = false;
 for ($i = 0; $i < 25; $i++) {
-	$ch = curl_init("http://127.0.0.1:$port/csrf.php");
-	curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 1]);
-	$out = curl_exec($ch);
-	curl_close($ch);
-	if ($out !== false) { $ready = true; break; }
-	usleep(200000);
+    $ch = curl_init("http://127.0.0.1:$port/csrf.php");
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 1]);
+    $out = curl_exec($ch);
+    curl_close($ch);
+    if ($out !== false) { $ready = true; break; }
+    usleep(200000);
 }
 if (!$ready) {
-	echo "FAIL: server did not start\n";
-	proc_terminate($proc);
-	proc_close($proc);
-	exit(1);
+    echo "FAIL: server did not start\n";
+    proc_terminate($proc);
+    proc_close($proc);
+    exit(1);
 }
 
 $base = "http://127.0.0.1:$port";
@@ -62,34 +62,34 @@ $cookie = sys_get_temp_dir() . '/weatherapp_ctrl_cookie.txt';
 @unlink($cookie);
 
 function req(string $base, string $cookie, string $method, string $path, array $post = []): array {
-	$ch = curl_init($base . $path);
-	curl_setopt_array($ch, [
-		CURLOPT_RETURNTRANSFER => true,
-		CURLOPT_HEADER         => true,
-		CURLOPT_COOKIEJAR      => $cookie,
-		CURLOPT_COOKIEFILE     => $cookie,
-		CURLOPT_TIMEOUT        => 5,
-		CURLOPT_CUSTOMREQUEST  => $method,
-	]);
-	if ($method === 'POST') {
-		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post));
-	}
-	$resp = curl_exec($ch);
-	$code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-	curl_close($ch);
-	// Split headers/body on first blank line.
-	$parts = explode("\r\n\r\n", $resp, 2);
-	$body  = $parts[1] ?? $parts[0];
-	return [$code, $body];
+    $ch = curl_init($base . $path);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER         => true,
+        CURLOPT_COOKIEJAR      => $cookie,
+        CURLOPT_COOKIEFILE     => $cookie,
+        CURLOPT_TIMEOUT        => 5,
+        CURLOPT_CUSTOMREQUEST  => $method,
+    ]);
+    if ($method === 'POST') {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post));
+    }
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+    // Split headers/body on first blank line.
+    $parts = explode("\r\n\r\n", $resp, 2);
+    $body  = $parts[1] ?? $parts[0];
+    return [$code, $body];
 }
 
 function tokenFor(string $base, string $cookie): ?string {
-	$ch = curl_init($base . '/csrf.php');
-	curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_COOKIEJAR => $cookie, CURLOPT_COOKIEFILE => $cookie]);
-	$json = curl_exec($ch);
-	curl_close($ch);
-	$data = json_decode($json, true);
-	return $data['token'] ?? null;
+    $ch = curl_init($base . '/csrf.php');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_COOKIEJAR => $cookie, CURLOPT_COOKIEFILE => $cookie]);
+    $json = curl_exec($ch);
+    curl_close($ch);
+    $data = json_decode($json, true);
+    return $data['token'] ?? null;
 }
 
 // 1) GET -> 405

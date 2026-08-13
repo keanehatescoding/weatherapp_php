@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 /**
  * Stub API for CI testing. Returns canned OpenWeatherMap-shaped responses.
  *
@@ -13,23 +13,23 @@ $bad = isset($_GET['bad']);
 $status = isset($_GET['status']) ? (int)$_GET['status'] : 200;
 
 if ($bad) {
-	http_response_code(200);
-	echo '{"main": {"temp": 123}, "weather": [{"description": "test", "icon": "01d"}]'; // missing }
-	exit;
+    http_response_code(200);
+    echo '{"main": {"temp": 123}, "weather": [{"description": "test", "icon": "01d"}]'; // missing }
+    exit;
 }
 
 if ($status !== 200) {
-	http_response_code($status);
-	echo json_encode(['cod' => (string)$status, 'message' => 'city not found']);
-	exit;
+    http_response_code($status);
+    echo json_encode(['cod' => (string)$status, 'message' => 'city not found']);
+    exit;
 }
 
 http_response_code(200);
 echo json_encode([
-	'name' => 'TestCity',
-	'sys'  => ['country' => 'TC', 'sunrise' => time(), 'sunset' => time() + 50000],
-	'main' => ['temp' => 21, 'feels_like' => 20, 'humidity' => 60, 'pressure' => 1013],
-	'wind' => ['speed' => 3.5],
-	'weather' => [['description' => 'clear sky', 'icon' => '01d']],
-	'timezone' => 10800, // +3h
+    'name' => 'TestCity',
+    'sys'  => ['country' => 'TC', 'sunrise' => time(), 'sunset' => time() + 50000],
+    'main' => ['temp' => 21, 'feels_like' => 20, 'humidity' => 60, 'pressure' => 1013],
+    'wind' => ['speed' => 3.5],
+    'weather' => [['description' => 'clear sky', 'icon' => '01d']],
+    'timezone' => 10800, // +3h
 ]);

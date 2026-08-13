@@ -17,13 +17,17 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: curl
+          extensions: curl, session, apcu
+          ini-values: apc.enable_cli=1
           coverage: none
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Install Composer dependencies (incl. dev tools)
+        run: composer install --no-interaction --prefer-dist
 
       - name: Lint PHP files (syntax)
         run: |
@@ -37,12 +41,40 @@ jobs:
       - name: Run PHP unit tests
         env:
           OPENWEATHERMAP_API_KEY: dummy-ci-key
-        run: php tests/test_weather.php
+        run: |
+          php tests/test_weather.php
+          php tests/test_ratelimit.php
 
-      - name: Run PHP HTTP integration tests
+      - name: Run PHP HTTP integration tests (APCu cache path enabled)
         env:
           OPENWEATHERMAP_API_KEY: dummy-ci-key
         run: php tests/test_http.php
+
+      - name: Run controller integration tests
+        env:
+          OPENWEATHERMAP_API_KEY: dummy-ci-key
+        run: php tests/test_controller.php
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: curl, session
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Static analysis (PHPStan)
+        run: php vendor/bin/phpstan analyse -c phpstan.neon.dist --no-progress
+
+      - name: Code style (PHP-CS-Fixer, dry-run)
+        run: php vendor/bin/php-cs-fixer fix --dry-run --diff
 
   security:
     runs-on: ubuntu-latest

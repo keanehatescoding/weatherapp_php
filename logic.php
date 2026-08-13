@@ -166,15 +166,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		$content .= Weather::errorAlert($e->getMessage());
 	} catch (UserFacingException $e) {
 		$statusCode = 400;
-		Weather::log('User-facing error: ' . $e->getMessage(), $ip, $city ?? '');
+		Weather::log('User-facing error: ' . $e->getMessage(), $ip, $city);
 		$content .= Weather::errorAlert($e->getMessage());
 	} catch (InvalidArgumentException $e) {
 		$statusCode = 400;
-		Weather::log('Validation error: ' . $e->getMessage(), $ip, $city ?? '');
+		Weather::log('Validation error: ' . $e->getMessage(), $ip, $city);
 		$content .= Weather::errorAlert($e->getMessage());
 	} catch (Throwable $e) {
 		Weather::log('Unhandled error: ' . $e->getMessage(), $ip);
-		$statusCode = ($statusCode === 200) ? 500 : $statusCode;
+		$statusCode = 500;
 		$content .= Weather::errorAlert('Something went wrong. Please try again later.');
 	}
 }

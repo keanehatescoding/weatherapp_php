@@ -10,9 +10,9 @@ require_once __DIR__ . '/../app/Weather.php';
 
 $failures = 0;
 function check(bool $cond, string $label): void {
-	global $failures;
-	if ($cond) { echo "ok:   $label\n"; }
-	else { echo "FAIL: $label\n"; $failures++; }
+    global $failures;
+    if ($cond) { echo "ok:   $label\n"; }
+    else { echo "FAIL: $label\n"; $failures++; }
 }
 
 // --- URL builders ---
@@ -34,18 +34,18 @@ $rlFile = __DIR__ . '/../var/ratelimit/' . preg_replace('/[^A-Za-z0-9_.-]/', '_'
 $w2 = new Weather($ip);
 $threw = false;
 try {
-	for ($i = 0; $i < 30; $i++) {
-		$w2->enforceRateLimit();
-	}
-	check(true, '30 requests allowed');
+    for ($i = 0; $i < 30; $i++) {
+        $w2->enforceRateLimit();
+    }
+    check(true, '30 requests allowed');
 } catch (Throwable $e) {
-	check(false, '30 requests allowed (threw early: ' . get_class($e) . ')');
+    check(false, '30 requests allowed (threw early: ' . get_class($e) . ')');
 }
 
 try {
-	$w2->enforceRateLimit(); // 31st
+    $w2->enforceRateLimit(); // 31st
 } catch (RateLimitExceededException $e) {
-	$threw = true;
+    $threw = true;
 }
 check($threw, '31st request throws RateLimitExceededException');
 

@@ -5,3 +5,7 @@
 
 # Composer
 /vendor/
+
+# Tooling caches
+.php-cs-fixer.cache
+.phpstan-cache/
