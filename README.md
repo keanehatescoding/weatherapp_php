@@ -1,94 +1,180 @@
-# PHP Weather App
+# WeatherApp
 
-## Description
-This is a simple, responsive PHP weather application using the OpenWeatherMap One Call 3.0 API to fetch and display current conditions and a 7-day forecast for any location supported by the OpenWeatherMap API. You can search by city name or use the **📍 Use my location** button to fetch weather for your current coordinates.
+A lightweight, responsive weather application written in PHP. It uses the
+[OpenWeatherMap One Call 3.0 API](https://openweathermap.org/api) to display
+current conditions and a 7‑day forecast for any supported location. Search by
+city name, or use the **📍 Use my location** button to fetch weather for your
+current coordinates.
 
-## 🔧 Features
-
-1. **Current Weather**  
-   - Displays temperature, humidity, description, and an emoji for the current conditions.
-3. **Input Validation & Error Handling**  
-   - Ensures city names contain only letters, spaces, hyphens, and apostrophes.  
-   - User-friendly error messages for invalid input or HTTP/API errors.
-4. **XSS Protection**  
-   - All user inputs are validated and never directly injected as HTML even when fetching results from the OpenWeatherMap API we sanitize input to ensure even if OpenWeatherMap is hacked we are not susceptible to Cross Site Scripting Attacks. 
-   - Displayed data comes strictly from sanitized API responses or controlled DOM updates.
-   - Client Side filtering to prevent the client from injecting malicious input and also server side to mitigate this.
-5. **Rate Limiting Awareness**  
-   - Uses a single API key under the free tier limits and therefore uses IP based rate limiting to minimise the number of Denial of Service Attacks and excessive API usage bills.  
-   - **30 requests per IP per 24 h** (enforced via a file-based per-IP counter in `./var/ratelimit`, with a session-backed fallback if the filesystem is read-only).  
-   - **Response caching** (~10 min TTL) reuses cached results for repeated lookups to further reduce API quota usage.  
-   - Avoids excessive polling; only fetches data on explicit form submission.
 ---
 
-## ▶️ Getting Started
+## Features
 
-### Pre-requites
-   
-#### Git
-- Ensure git is installed on your machine to clone this repo. The official installation page for git is [here](https://git-scm.com/downloads).
-  
-#### PHP HTTP Server
-- This project uses PHP as it's backend therefore we need a server that can handle php files. You can install xammp or php >= 7 or any other http server that supports php.
+- **Current weather & 7‑day forecast** — temperature, "feels like", humidity,
+  pressure, wind, sunrise/sunset, and an emoji icon, followed by a 7‑day outlook
+  rendered from One Call 3.0 `daily` data.
+- **Geolocation** — request the browser's current position and look up weather
+  by latitude/longitude (with a best‑effort reverse‑geocoded place name).
+- **°C / °F toggle** — unit preference is remembered across visits via
+  `localStorage`.
+- **Progressive enhancement** — results are fetched with `fetch()` and rendered
+  inline; the form still works as a full‑page POST when JavaScript is disabled.
+- **Input validation** — city names are validated on both the client
+  (sanitize.js) and the server (logic.php) using the same regular expression,
+  and all output is HTML‑escaped to prevent XSS.
+- **CSRF protection** — state‑changing requests require a session‑bound CSRF
+  token (`csrf.php`).
+- **Security headers** — `Content-Security-Policy`, `X-Content-Type-Options`,
+  and `X-Frame-Options`, plus `Cache-Control: no-store`.
+- **Rate limiting** — per‑IP limits (30 requests / 24h) enforced by a
+  file‑based counter in `./var/ratelimit`, with a session‑backed fallback when
+  the filesystem is read‑only. Exceeding the limit returns HTTP 429 with a
+  `Retry-After` header.
+- **Response caching** — successful API responses are cached on disk (and in
+  APCu when available) for ~10 minutes to minimise quota usage.
+- **Configuration flexibility** — the API key can be supplied via an environment
+  variable or a local `.env` file (see `.env.example`).
 
-### Installation Guide
+---
 
-Clone this repo
+## Requirements
+
+- PHP **8.1+** with the `curl`, `json`, and `session` extensions.
+- An [OpenWeatherMap](https://openweathermap.org) API key.
+  > **Note:** One Call 3.0 (used for the 7‑day forecast) is free on the standard
+  > tier, but you must subscribe the key to the **One Call API** once in the
+  > OpenWeatherMap dashboard.
+
+---
+
+## Installation
+
 ```bash
 git clone https://github.com/keanehatescoding/weatherapp_php.git
-```
-go to the weatherapp directory
-```bash
 cd weatherapp_php
 ```
-To be able to send and receive weather information you need an API key. Navigate to this [link](https://openweathermap.org) to create your openweathermap account and get your API key. This should take approximately 20 mins. Once you get your API key then create an ENIVORNMENTAL VARIABLE called OPENWEATHERMAP_API_KEY and export it i.e for Linux this would be:
 
-> Note: One Call 3.0 (used for the 7-day forecast) must be enabled for your key in the OpenWeatherMap dashboard — it is free on the standard tier but you may need to subscribe the key to the One Call API once.
+### Configure the API key
+
+Set the key as an environment variable named `OPENWEATHERMAP_API_KEY`.
+
+**Linux / macOS**
+
 ```bash
-export OPENWEATHERMAP_API_KEY="* your API key here *"
+export OPENWEATHERMAP_API_KEY="your_api_key_here"
 ```
-ON Windows
-``` powershell
+
+**Windows (PowerShell)**
+
+```powershell
 [Environment]::SetEnvironmentVariable("OPENWEATHERMAP_API_KEY", "YOUR_API_KEY", "User")
 ```
 
-If you have xammpp you can move all this files to /htdocs directory in xammpp while if you have php>= 7 then just type
-```
+Alternatively, copy `.env.example` to `.env` and set the value there; the `.env`
+file is loaded automatically and is git‑ignored.
+
+---
+
+## Running the application
+
+### Built‑in PHP server
+
+```bash
 php -S localhost:8000
 ```
-If port 8000 is free then it will attempt to run this project from that post. All you need now is go open http://localhost:8000 from your browser or whatever port your php server is running on.
 
-## 📝 License
+Then open <http://localhost:8000> in your browser.
 
-This project is licensed under the GNU General Public License version 2.1 (GPL-2.1).  
-You may obtain a copy of the license at:
+### Docker
 
-- https://www.gnu.org/licenses/old-licenses/gpl-2.1.html
-
-```text
-GNU GENERAL PUBLIC LICENSE
-                       Version 2.1, February 1999
-
-Copyright (C) <year> <author>
-Everyone is permitted to copy and distribute verbatim copies
-of this license document, but changing it is not allowed.
-
-[Full text at https://www.gnu.org/licenses/old-licenses/gpl-2.1.html]
+```bash
+docker compose up --build
 ```
-By using, modifying or distributing this software, you agree to all terms and conditions listed in GPL-2.1.
 
-## 🙏 Acknowledgements
+The service is exposed on <http://localhost:8000>. Provide the API key through
+your environment (or a `.env` file) as described above.
 
-Tribute to [OpenWeatherMap.org](https://openweathermap.org) for their robuse and free tier API which has enabled us to build this project and learn a lot.
+---
 
-Much appreciation to the following parties for their contribution.
+## Project structure
 
-[@keanehatescoding](https://github.com/keanehatescoding)
+| Path | Purpose |
+|------|---------|
+| `index.html` | Search UI and unit toggle. |
+| `sanitize.js` | Client‑side input sanitisation, CSRF token fetch, geolocation, AJAX. |
+| `logic.php` | Request controller (validation, rate limiting, rendering). |
+| `csrf.php` | Issues the per‑session CSRF token. |
+| `app/Weather.php` | API client: geocoding, One Call 3.0, caching, rate limiting. |
+| `app/Env.php` | Dependency‑free `.env` loader. |
+| `Forecast.php` | Renders the 7‑day forecast markup. |
+| `Icons.php` | Maps OpenWeatherMap icon codes to emoji. |
+| `utils.php` | Shared HTML‑escaping helper. |
+| `tests/` | Unit and integration tests (no network or real key required). |
+| `.github/workflows/ci.yml` | Continuous integration pipeline. |
 
-[@easter-m](https://github.com/easter-m)
+---
 
-[yo-yo-05](https://github.com/yo-yo-05)
+## Security model
 
-[@Hopeyriizeis7](https://github.com/Hopeyriizeis7)
+- **No secret leakage** — API keys are read server‑side only and are never
+  echoed to the client. Transport/API errors show generic, user‑safe messages.
+- **Defence in depth** — input is validated on the client and again on the
+  server, and all rendered values are HTML‑escaped.
+- **Hardened headers** — a restrictive CSP, `X-Content-Type-Options: nosniff`,
+  and `X-Frame-Options: DENY` are emitted on every response.
+- **Trusted‑proxy aware** — the real client IP for rate limiting honours
+  `X-Forwarded-For` / `X-Real-IP` only when the immediate peer is listed in
+  `TRUSTED_PROXIES`.
 
-[@mulle-emmanuel](https://github.com/mulle-emmanuel)
+---
+
+## Development
+
+Install development dependencies (PHPStan, PHP‑CS‑Fixer):
+
+```bash
+composer install
+```
+
+Run the test suite (no network or real API key required — a local stub server
+is used):
+
+```bash
+composer test
+# or individually:
+php tests/test_weather.php
+php tests/test_ratelimit.php
+php tests/test_onecall.php
+php tests/test_http.php
+php tests/test_controller.php
+```
+
+Static analysis and code style:
+
+```bash
+php vendor/bin/phpstan analyse -c phpstan.neon.dist
+php vendor/bin/php-cs-fixer fix --dry-run
+```
+
+Continuous integration runs linting, all tests, PHPStan, and PHP‑CS‑Fixer on
+every push and pull request.
+
+---
+
+## License
+
+Distributed under the **GNU General Public License v2.1 (GPL‑2.1)**. See the
+[LICENSE](LICENSE) file for the full text. By using, modifying, or distributing
+this software you agree to the terms of that license.
+
+---
+
+## Acknowledgements
+
+Weather data provided by [OpenWeatherMap](https://openweathermap.org).
+
+Contributors: [@keanehatescoding](https://github.com/keanehatescoding),
+[@easter-m](https://github.com/easter-m),
+[yo-yo-05](https://github.com/yo-yo-05),
+[@Hopeyriizeis7](https://github.com/Hopeyriizeis7),
+[@mulle-emmanuel](https://github.com/mulle-emmanuel).

@@ -16,8 +16,9 @@
     "scripts": {
         "test": [
             "@php tests/test_weather.php",
-            "@php tests/test_http.php",
             "@php tests/test_ratelimit.php",
+            "@php tests/test_onecall.php",
+            "@php tests/test_http.php",
             "@php tests/test_controller.php"
         ],
         "lint": "for f in *.php app/*.php tests/*.php; do @php -l \"$f\"; done",
