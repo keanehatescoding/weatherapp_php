@@ -71,37 +71,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 			);
 		}
 
-		// --- Current weather ---
-		$currentUrl = $weather->currentWeatherUrl($city);
+		// --- Geocode + One Call 3.0 (current weather + 7-day forecast) ---
+		$meta       = $weather->fetchByCity($city);
+		$current    = $meta['current'];
+		$tzOff      = $meta['timezone_offset'];
+		$name       = $meta['name'];
+		$country    = $meta['country'];
+		$weatherArr = $current['weather'][0] ?? [];
+		$deg        = $units === 'imperial' ? '°F' : '°C';
 
-		[$status, $currentData] = Weather::fetchJson($currentUrl);
-		if ($status !== 200) {
-			Weather::log("Current weather API HTTP $status: " . ($currentData['message'] ?? ''), $ip, $city);
-			if ($status === 401) {
-				throw new UserFacingException(
-					'Weather API key was rejected by the provider. Verify your OPENWEATHERMAP_API_KEY.'
-				);
-			}
-			if ($status === 404) {
-				throw new UserFacingException('City not found. Please check the spelling and try again.');
-			}
-			throw new UserFacingException('Weather service is temporarily unavailable. Please try again later.');
-		}
+		$locNow       = time() + $tzOff;
+		$sunriseLocal = isset($current['sunrise']) ? (int)$current['sunrise'] + $tzOff : null;
+		$sunsetLocal  = isset($current['sunset'])   ? (int)$current['sunset']   + $tzOff : null;
 
-		$weatherHtml = '';
-		$name        = $currentData['name'] ?? '';
-		$country     = $currentData['sys']['country'] ?? '';
-		$tzOff       = isset($currentData['timezone']) ? (int)$currentData['timezone'] : 0;
-		$main        = $currentData['main'] ?? [];
-		$wind        = $currentData['wind'] ?? [];
-		$weatherArr  = $currentData['weather'][0] ?? [];
-
-		$locNow      = time() + $tzOff;
-		$sunriseLocal = !empty($currentData['sys']['sunrise'])
-			? $currentData['sys']['sunrise'] + $tzOff : null;
-		$sunsetLocal  = !empty($currentData['sys']['sunset'])
-			? $currentData['sys']['sunset'] + $tzOff : null;
-
+		$weatherHtml  = '';
 		$weatherHtml .= '<div class="alert alert-info text-center mb-4 bg-white bg-opacity-90 border-0 shadow-lg" role="alert">';
 		if ($name !== '' || $country !== '') {
 			$weatherHtml .= '<h4 class="text-primary mb-3 fw-bold">'
@@ -110,16 +93,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		}
 		$weatherHtml .= '<div class="row text-center g-0">';
 		$weatherHtml .= '<div class="col-6 mb-2">';
-		$weatherHtml .= '<p class="mb-1"><strong>Temperature:</strong> ' . Weather::esc(intval($main['temp'] ?? 0)) . '°C</p>';
-		$weatherHtml .= '<p class="mb-1"><strong>Feels like:</strong> ' . Weather::esc(intval($main['feels_like'] ?? 0)) . '°C</p>';
-		$weatherHtml .= '<p class="mb-1"><strong>Humidity:</strong> ' . Weather::esc(intval($main['humidity'] ?? 0)) . '%</p>';
+		$weatherHtml .= '<p class="mb-1"><strong>Temperature:</strong> ' . Weather::esc(round((float)($current['temp'] ?? 0))) . $deg . '</p>';
+		$weatherHtml .= '<p class="mb-1"><strong>Feels like:</strong> ' . Weather::esc(round((float)($current['feels_like'] ?? 0))) . $deg . '</p>';
+		$weatherHtml .= '<p class="mb-1"><strong>Humidity:</strong> ' . Weather::esc((int)($current['humidity'] ?? 0)) . '%</p>';
 		$weatherHtml .= '<p class="mb-1"><strong>Weather:</strong> '
 			. Weather::esc(ucfirst($weatherArr['description'] ?? '')) . '</p>';
 		$weatherHtml .= '</div>';
 		$weatherHtml .= '<div class="col-6 mb-2">';
-		$weatherHtml .= '<p class="mb-1"><strong>Pressure:</strong> ' . Weather::esc($main['pressure'] ?? '') . ' hPa</p>';
+		$weatherHtml .= '<p class="mb-1"><strong>Pressure:</strong> ' . Weather::esc((int)($current['pressure'] ?? 0)) . ' hPa</p>';
 		$weatherHtml .= '<p class="mb-1"><strong>Wind:</strong> '
-			. Weather::esc(round((float)($wind['speed'] ?? 0), 1)) . ' m/s</p>';
+			. Weather::esc(round((float)($current['wind_speed'] ?? 0), 1)) . ' m/s</p>';
 		$weatherHtml .= '<p class="mb-1"><strong>Sunrise:</strong> '
 			. ($sunriseLocal !== null ? Weather::esc(gmdate('g:i a', $sunriseLocal)) : '—') . '</p>';
 		$weatherHtml .= '<p class="mb-1"><strong>Sunset:</strong> '
@@ -136,21 +119,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 		$content .= $weatherHtml;
 
-		// --- Forecast (best-effort: do not kill the page if it fails) ---
-		$forecastUrl = $weather->forecastUrl($city);
+		// --- 7-day forecast (best-effort; keep current weather if it fails) ---
 		try {
-			[$fStatus, $forecastData] = Weather::fetchJson($forecastUrl);
-			if ($fStatus !== 200) {
-				Weather::log("Forecast API HTTP $fStatus: " . ($forecastData['message'] ?? ''), $ip, $city);
-				throw new UserFacingException('Could not load the extended forecast right now. Try again later.');
-			}
-			$content .= Forecast::displayForecast($forecastData);
-		} catch (UserFacingException $e) {
-			// Forecast-specific, user-safe message (e.g. unavailable). Keep the
-			// current weather panel which already rendered above.
-			$content .= '<p class="text-center text-muted mt-3 mb-0">' . Weather::esc($e->getMessage()) . '</p>';
+			$content .= Forecast::displayForecast($meta['daily']);
 		} catch (Throwable $e) {
-			Weather::log('Forecast fetch failed: ' . $e->getMessage(), $ip, $city);
+			Weather::log('Forecast render failed: ' . $e->getMessage(), $ip, $city);
 			$content .= '<p class="text-center text-muted mt-3 mb-0">'
 				. 'Could not load the extended forecast right now. Try again later.'
 				. '</p>';

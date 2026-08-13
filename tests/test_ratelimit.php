@@ -17,14 +17,17 @@ function check(bool $cond, string $label): void {
 
 // --- URL builders ---
 $w = new Weather('203.0.113.9', 'SECRET_KEY', 'https://example.com/api', 'metric');
-$cur = $w->currentWeatherUrl('New York');
-check(str_contains($cur, 'https://example.com/api/weather?q=New%20York'), 'currentWeatherUrl encodes city + base');
-check(str_contains($cur, 'appid=SECRET_KEY'), 'currentWeatherUrl includes api key');
-check(str_contains($cur, 'units=metric'), 'currentWeatherUrl uses metric units');
+$geo = $w->geocodeUrl('New York');
+check(str_contains($geo, 'https://example.com/api/geo/1.0/direct?q=New%20York'), 'geocodeUrl encodes city + base');
+check(str_contains($geo, 'appid=SECRET_KEY'), 'geocodeUrl includes api key');
+
+$oc = $w->oneCallUrl(-1.28, 36.81);
+check(str_contains($oc, 'https://example.com/api/data/3.0/onecall?lat=-1.28&lon=36.81'), 'oneCallUrl builds One Call path');
+check(str_contains($oc, 'units=metric'), 'oneCallUrl uses metric units');
+check(str_contains($oc, 'appid=SECRET_KEY'), 'oneCallUrl includes api key');
 
 $wImp = new Weather('203.0.113.9', 'SECRET_KEY', 'https://example.com/api', 'imperial');
-check(str_contains($wImp->forecastUrl('Paris'), 'units=imperial'), 'forecastUrl honours imperial units');
-check(str_contains($wImp->forecastUrl('Paris'), 'https://example.com/api/forecast?q=Paris'), 'forecastUrl builds path');
+check(str_contains($wImp->oneCallUrl(0, 0), 'units=imperial'), 'oneCallUrl honours imperial units');
 
 // --- Rate limiting: 30 allowed, 31st throws ---
 $ip = '198.51.100.23'; // TEST-NET-2, safe fake IP

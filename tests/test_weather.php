@@ -26,25 +26,23 @@ check(Icons::get('02d') === '🌤️', 'few clouds day icon');
 check(Icons::get('01d') === '☀️', 'clear sky day');
 check(Icons::get('zzz') === '🌡️', 'unknown icon falls back');
 
-// --- Forecast validation ---
+// --- Forecast validation (empty/non-array input) ---
 try {
-    Forecast::displayForecast(['notlist' => true]);
-    check(false, 'forecast should reject bad payload');
-} catch (InvalidArgumentException $e) {
-    check(true, 'forecast rejects malformed payload');
+    Forecast::displayForecast([]);
+    check(true, 'forecast handles empty array');
+} catch (Throwable $e) {
+    check(false, 'forecast handles empty array (threw: ' . get_class($e) . ')');
 }
 
-// --- Forecast renders sample data ---
-$tomorrow = strtotime('+1 day', time());
+// --- Forecast renders One Call 3.0 daily data ---
+$tomorrow  = strtotime('+1 day', time());
 $dayAfter = strtotime('+2 days', time());
 $sample = [
-    'list' => [
-        ['dt' => $tomorrow, 'main' => ['temp' => 22, 'temp_min' => 18], 'weather' => [['description' => 'clear sky', 'icon' => '01d']]],
-        ['dt' => $dayAfter, 'main' => ['temp' => 23, 'temp_min' => 19], 'weather' => [['description' => 'few clouds', 'icon' => '02d']]],
-    ],
+    ['dt' => $tomorrow, 'temp' => ['min' => 18, 'max' => 22], 'weather' => [['description' => 'clear sky', 'icon' => '01d']]],
+    ['dt' => $dayAfter, 'temp' => ['min' => 19, 'max' => 23], 'weather' => [['description' => 'few clouds', 'icon' => '02d']]],
 ];
 $out = Forecast::displayForecast($sample);
-check(str_contains($out, 'Day Forecast'), 'forecast contains heading');
+check(str_contains($out, '7-Day Forecast'), 'forecast contains 7-day heading');
 check(str_contains($out, '🌤️') || str_contains($out, '☀️'), 'forecast contains an emoji');
 check(str_contains($out, '°/'), 'forecast shows temp range');
 

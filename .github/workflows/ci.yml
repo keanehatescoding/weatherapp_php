@@ -44,6 +44,7 @@ jobs:
         run: |
           php tests/test_weather.php
           php tests/test_ratelimit.php
+          php tests/test_onecall.php
 
       - name: Run PHP HTTP integration tests (APCu cache path enabled)
         env:

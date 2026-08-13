@@ -52,8 +52,8 @@ class Weather {
     /** @var string OpenWeatherMap API key (injected; not read from env here). */
     private string $apiKey = '';
 
-    /** @var string OpenWeatherMap base URL (overridable for tests). */
-    private string $baseUrl = 'https://api.openweathermap.org/data/2.5';
+    /** @var string OpenWeatherMap base host (overridable for tests). */
+    private string $baseUrl = 'https://api.openweathermap.org';
 
     /** @var string Temperature units passed to the API ('metric'|'imperial'). */
     private string $units = 'metric';
@@ -125,23 +125,126 @@ class Weather {
         $this->units = $units === 'imperial' ? 'imperial' : 'metric';
     }
 
-    /** Build the current-weather endpoint URL for a city. */
-    public function currentWeatherUrl(string $city): string {
-        return $this->baseUrl . '/weather?q=' . rawurlencode($city)
-            . '&appid=' . rawurlencode($this->apiKey)
-            . '&units=' . $this->units . '&lang=en';
+    /** Build the geocoding endpoint URL for a city name. */
+    public function geocodeUrl(string $city): string {
+        return rtrim($this->baseUrl, '/') . '/geo/1.0/direct?q=' . rawurlencode($city)
+            . '&limit=1&appid=' . rawurlencode($this->apiKey);
     }
 
-    /** Build the 5-day forecast endpoint URL for a city. */
-    public function forecastUrl(string $city): string {
-        return $this->baseUrl . '/forecast?q=' . rawurlencode($city)
-            . '&appid=' . rawurlencode($this->apiKey)
-            . '&units=' . $this->units . '&lang=en';
+    /** Build the reverse-geocoding endpoint URL for coordinates. */
+    public function reverseGeocodeUrl(float $lat, float $lon): string {
+        return rtrim($this->baseUrl, '/') . '/geo/1.0/reverse?lat=' . $lat . '&lon=' . $lon
+            . '&limit=1&appid=' . rawurlencode($this->apiKey);
     }
 
     /**
-     * Log a message with an ISO-8601 timestamp + originating IP/context.
+     * Build the One Call 3.0 endpoint URL for coordinates.
+     * Excludes minutely/hourly/alerts to stay within the free-tier call budget.
      */
+    public function oneCallUrl(float $lat, float $lon): string {
+        return rtrim($this->baseUrl, '/') . '/data/3.0/onecall?lat=' . $lat . '&lon=' . $lon
+            . '&exclude=minutely,hourly,alerts&units=' . $this->units
+            . '&lang=en&appid=' . rawurlencode($this->apiKey);
+    }
+
+    /**
+     * Resolve a city name to coordinates via the Geocoding API, then fetch
+     * current + 7-day daily weather via One Call 3.0. Returns a consolidated
+     * array the controller can render directly.
+     *
+     * @return array{name:string,country:string,state:string,lat:float,lon:float,timezone:string,timezone_offset:int,current:array,daily:array}
+     * @throws UserFacingException on API key/quota/city-not-found/transport errors.
+     */
+    public function fetchByCity(string $city): array {
+        [$gStatus, $geo] = self::fetchJson($this->geocodeUrl($city));
+        if ($gStatus !== 200) {
+            $this->throwApiError($gStatus, $geo, $city, 'geocode');
+        }
+        if (!is_array($geo) || $geo === [] || !isset($geo[0]['lat'], $geo[0]['lon'])) {
+            throw new UserFacingException('City not found. Please check the spelling and try again.');
+        }
+        $g = $geo[0];
+        return $this->fetchOneCall(
+            (float)$g['lat'],
+            (float)$g['lon'],
+            $g['name'] ?? '',
+            $g['country'] ?? '',
+            $g['state'] ?? '',
+            $city
+        );
+    }
+
+    /**
+     * Fetch current + 7-day daily weather for explicit coordinates (used by the
+     * geolocation feature). Best-effort reverse geocoding provides a label.
+     *
+     * @return array{name:string,country:string,state:string,lat:float,lon:float,timezone:string,timezone_offset:int,current:array,daily:array}
+     * @throws UserFacingException on API key/quota/transport errors.
+     */
+    public function fetchByCoords(float $lat, float $lon): array {
+        $name = '';
+        $country = '';
+        // Best-effort: label the result with a human-readable place name.
+        try {
+            [$rStatus, $rev] = self::fetchJson($this->reverseGeocodeUrl($lat, $lon));
+            if ($rStatus === 200 && is_array($rev) && isset($rev[0])) {
+                $name    = $rev[0]['name'] ?? '';
+                $country = $rev[0]['country'] ?? '';
+            }
+        } catch (Throwable $e) {
+            Weather::log('Reverse geocode failed: ' . $e->getMessage(), $this->ip);
+        }
+        if ($name === '') {
+            $name = 'Your location';
+        }
+        return $this->fetchOneCall($lat, $lon, $name, $country, '', 'geolocation');
+    }
+
+    /**
+     * Call One Call 3.0 and consolidate the payload into the shape the
+     * controller expects.
+     *
+     * @throws UserFacingException
+     */
+    private function fetchOneCall(float $lat, float $lon, string $name, string $country, string $state, string $ctx): array {
+        [$oStatus, $one] = self::fetchJson($this->oneCallUrl($lat, $lon));
+        if ($oStatus !== 200) {
+            $this->throwApiError($oStatus, $one, $ctx, 'onecall');
+        }
+        if (!is_array($one) || !isset($one['current'], $one['daily'])) {
+            throw new UserFacingException('Weather service returned an unexpected response. Please try again later.');
+        }
+        return [
+            'name'            => $name,
+            'country'         => $country,
+            'state'           => $state,
+            'lat'             => $lat,
+            'lon'             => $lon,
+            'timezone'        => $one['timezone'] ?? '',
+            'timezone_offset' => (int)($one['timezone_offset'] ?? 0),
+            'current'         => $one['current'],
+            'daily'           => $one['daily'],
+        ];
+    }
+
+    /**
+     * Map an upstream API error status to a user-safe exception.
+     *
+     * @throws UserFacingException
+     */
+    private function throwApiError(int $status, array $payload, string $city, string $stage): void {
+        Weather::log(ucfirst($stage) . ' API HTTP ' . $status . ': ' . ($payload['message'] ?? ''), $this->ip, $city);
+        if ($status === 401) {
+            throw new UserFacingException(
+                'Weather API key was rejected by the provider. Verify your OPENWEATHERMAP_API_KEY.'
+            );
+        }
+        if ($status === 404 || $status === 400) {
+            throw new UserFacingException('City not found. Please check the spelling and try again.');
+        }
+        throw new UserFacingException('Weather service is temporarily unavailable. Please try again later.');
+    }
+
     public static function log(string $message, string $ip = 'unknown', string $city = ''): void {
         $ctx = $city !== '' ? " city=\"$city\"" : '';
         error_log(sprintf('[%s] [%s]%s %s', date('c'), $ip, $ctx, $message));

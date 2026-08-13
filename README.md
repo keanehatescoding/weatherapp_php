@@ -1,7 +1,7 @@
 # PHP Weather App
 
 ## Description
-This is a simple, responsive PHP weather application using OpenWeatherMap API to fetch and display basic weather information to any location supported by the OpenWeatherMap API.
+This is a simple, responsive PHP weather application using the OpenWeatherMap One Call 3.0 API to fetch and display current conditions and a 7-day forecast for any location supported by the OpenWeatherMap API.
 
 ## 🔧 Features
 
@@ -42,6 +42,8 @@ go to the weatherapp directory
 cd weatherapp_php
 ```
 To be able to send and receive weather information you need an API key. Navigate to this [link](https://openweathermap.org) to create your openweathermap account and get your API key. This should take approximately 20 mins. Once you get your API key then create an ENIVORNMENTAL VARIABLE called OPENWEATHERMAP_API_KEY and export it i.e for Linux this would be:
+
+> Note: One Call 3.0 (used for the 7-day forecast) must be enabled for your key in the OpenWeatherMap dashboard — it is free on the standard tier but you may need to subscribe the key to the One Call API once.
 ```bash
 export OPENWEATHERMAP_API_KEY="* your API key here *"
 ```
