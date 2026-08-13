@@ -35,8 +35,57 @@ class Weather {
 	/** @var int Client IP used for rate limiting. */
 	private string $ip;
 
+	/**
+	 * Resolve the real client IP, honouring X-Forwarded-For / X-Real-IP only
+	 * when the immediate peer (REMOTE_ADDR) is a configured trusted proxy.
+	 * This keeps per-IP rate limiting correct behind load balancers / CDNs.
+	 */
+	public static function clientIp(): string {
+		$server = $_SERVER;
+		$remote = $server['REMOTE_ADDR'] ?? 'unknown';
+
+		$trusted = self::trustedProxies();
+		if ($trusted === [] || !in_array($remote, $trusted, true)) {
+			return $remote;
+		}
+
+		$xff = $server['HTTP_X_FORWARDED_FOR'] ?? '';
+		if ($xff !== '') {
+			// X-Forwarded-For is client, proxy1, proxy2...; the original client
+			// is the first public IP walking back from the end.
+			$ips = array_reverse(array_map('trim', explode(',', $xff)));
+			foreach ($ips as $ip) {
+				if (filter_var($ip, FILTER_VALIDATE_IP,
+						FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
+					return $ip;
+				}
+			}
+		}
+
+		$real = $server['HTTP_X_REAL_IP'] ?? '';
+		if ($real !== '' && filter_var($real, FILTER_VALIDATE_IP) !== false) {
+			return $real;
+		}
+
+		return $remote;
+	}
+
+	/**
+	 * List of trusted proxy IPs (from TRUSTED_PROXIES env, comma-separated).
+	 * Empty means REMOTE_ADDR is treated as the client directly.
+	 *
+	 * @return string[]
+	 */
+	private static function trustedProxies(): array {
+		$raw = getenv('TRUSTED_PROXIES');
+		if ($raw === false || $raw === '') {
+			return [];
+		}
+		return array_values(array_filter(array_map('trim', explode(',', $raw)), static fn($v) => $v !== ''));
+	}
+
 	public function __construct(string $ip = '') {
-		$this->ip = $ip !== '' ? $ip : ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+		$this->ip = $ip !== '' ? $ip : self::clientIp();
 	}
 
 	/**
@@ -61,6 +110,15 @@ class Weather {
 		return '<div class="alert alert-danger text-center" role="alert">'
 			. '<p class="mb-0 fw-bold">' . self::esc($message) . '</p>'
 			. '</div>';
+	}
+
+	/**
+	 * Send a Retry-After header (seconds) when rate limited.
+	 */
+	private static function sendRetryAfter(int $seconds): void {
+		if (!headers_sent() && $seconds > 0) {
+			@header('Retry-After: ' . $seconds);
+		}
 	}
 
 	/**
@@ -98,6 +156,8 @@ class Weather {
 				return ($now - (int)$ts) < self::RATE_LIMIT_WINDOW;
 			}));
 			if (count($hits) >= self::RATE_LIMIT_MAX) {
+				$retry = max(1, ((int)$hits[0] + self::RATE_LIMIT_WINDOW) - $now);
+				self::sendRetryAfter($retry);
 				http_response_code(429);
 				throw new RateLimitExceededException(
 					'We only allow ' . self::RATE_LIMIT_MAX . ' requests per day. Try again later.'
@@ -118,6 +178,8 @@ class Weather {
 			return ($now - (int)$ts) < self::RATE_LIMIT_WINDOW;
 		}));
 		if (count($byIp) >= self::RATE_LIMIT_MAX) {
+			$retry = max(1, ((int)($byIp[0] ?? $now) + self::RATE_LIMIT_WINDOW) - $now);
+			self::sendRetryAfter($retry);
 			http_response_code(429);
 			throw new RateLimitExceededException(
 				'We only allow ' . self::RATE_LIMIT_MAX . ' requests per day. Try again later.'

@@ -25,8 +25,8 @@ if (session_status() === PHP_SESSION_NONE) {
 	]);
 }
 
-$weather = new Weather();
-$ip      = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$ip      = Weather::clientIp();
+$weather = new Weather($ip);
 
 // --- Request handling ----------------------------------------------------
 $content     = '';
