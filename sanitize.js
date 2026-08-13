@@ -40,11 +40,44 @@
 			})
 			.catch(function () { /* server-side still validates */ });
 	}
-	form.addEventListener('submit', function () {
+	form.addEventListener('submit', function (e) {
+		e.preventDefault();
 		const btn = this.querySelector('button[type="submit"]');
 		if (btn) {
 			btn.disabled = true;
 			btn.textContent = 'Fetching… ⏳';
 		}
+
+		const cityVal = cityInput.value;
+		const tokenInput = document.getElementById('csrf-token');
+		const token = tokenInput ? tokenInput.value : '';
+
+		fetch('logic.php', {
+			method: 'POST',
+			headers: {
+				'X-Requested-With': 'XMLHttpRequest',
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			body: 'city=' + encodeURIComponent(cityVal) + '&csrf=' + encodeURIComponent(token),
+			credentials: 'same-origin'
+		})
+			.then(function (r) { return r.json(); })
+			.then(function (data) {
+				const box = document.getElementById('weather-result');
+				if (box && data && typeof data.html === 'string') {
+					box.innerHTML = data.html;
+					box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+			})
+			.catch(function () {
+				// Network/JSON failure: fall back to a normal full-page POST.
+				form.submit();
+			})
+			.finally(function () {
+				if (btn) {
+					btn.disabled = false;
+					btn.textContent = 'Get Weather 🔍';
+				}
+			});
 	});
 })();

@@ -177,6 +177,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		$content .= Weather::errorAlert('Something went wrong. Please try again later.');
 	}
 }
+
+// ---------------------------------------------------------------------------
+// AJAX mode: when the request asks for JSON (used by index.html via fetch),
+// return only the result fragment instead of the full HTML page.
+// ---------------------------------------------------------------------------
+$acceptsJson = ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest'
+	|| ($_GET['format'] ?? '') === 'json';
+if ($acceptsJson) {
+	if (!headers_sent()) {
+		header('Content-Type: application/json');
+		header('Cache-Control: no-store, no-cache, must-revalidate');
+		http_response_code($statusCode);
+	}
+	echo json_encode(['status' => $statusCode, 'html' => $content]);
+	exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
