@@ -1,0 +1,22 @@
+{
+    "name": "keanehatescoding/weatherapp-php",
+    "description": "Simple, responsive PHP weather application using the OpenWeatherMap API.",
+    "type": "project",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.1",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-session": "*"
+    },
+    "scripts": {
+        "test": [
+            "@php tests/test_weather.php",
+            "@php tests/test_http.php"
+        ],
+        "lint": "for f in *.php app/*.php tests/*.php; do @php -l \"$f\"; done"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

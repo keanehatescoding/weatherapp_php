@@ -2,3 +2,6 @@
 /var/
 .env
 *.log
+
+# Composer
+/vendor/
