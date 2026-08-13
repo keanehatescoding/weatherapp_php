@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # The API key is read from the environment by logic.php.
+      OPENWEATHERMAP_API_KEY: ${OPENWEATHERMAP_API_KEY:-}
+    # Optional: keep a local .env (gitignored) with OPENWEATHERMAP_API_KEY=...
+    env_file:
+      - .env
+    restart: unless-stopped

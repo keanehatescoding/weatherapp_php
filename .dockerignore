@@ -1,0 +1,11 @@
+.git
+.github
+var
+.env
+.env.example
+*.log
+Dockerfile
+docker-compose.yml
+.dockerignore
+tests
+vendor
