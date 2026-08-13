@@ -45,6 +45,15 @@ class Weather {
 	/** @var int Client IP used for rate limiting. */
 	private string $ip;
 
+	/** @var string OpenWeatherMap API key (injected; not read from env here). */
+	private string $apiKey = '';
+
+	/** @var string OpenWeatherMap base URL (overridable for tests). */
+	private string $baseUrl = 'https://api.openweathermap.org/data/2.5';
+
+	/** @var string Temperature units passed to the API ('metric'|'imperial'). */
+	private string $units = 'metric';
+
 	/**
 	 * Resolve the real client IP, honouring X-Forwarded-For / X-Real-IP only
 	 * when the immediate peer (REMOTE_ADDR) is a configured trusted proxy.
@@ -94,8 +103,33 @@ class Weather {
 		return array_values(array_filter(array_map('trim', explode(',', $raw)), static fn($v) => $v !== ''));
 	}
 
-	public function __construct(string $ip = '') {
-		$this->ip = $ip !== '' ? $ip : self::clientIp();
+	/**
+	 * @param string $ip      Client IP (rate limiting). Defaults to clientIp().
+	 * @param string $apiKey  OpenWeatherMap API key (injected, not from env).
+	 * @param string $baseUrl Override API base URL (handy for tests/mocks).
+	 * @param string $units   'metric' or 'imperial'.
+	 */
+	public function __construct(string $ip = '', string $apiKey = '', string $baseUrl = '', string $units = 'metric') {
+		$this->ip     = $ip !== '' ? $ip : self::clientIp();
+		$this->apiKey = $apiKey;
+		if ($baseUrl !== '') {
+			$this->baseUrl = rtrim($baseUrl, '/');
+		}
+		$this->units = $units === 'imperial' ? 'imperial' : 'metric';
+	}
+
+	/** Build the current-weather endpoint URL for a city. */
+	public function currentWeatherUrl(string $city): string {
+		return $this->baseUrl . '/weather?q=' . rawurlencode($city)
+			. '&appid=' . rawurlencode($this->apiKey)
+			. '&units=' . $this->units . '&lang=en';
+	}
+
+	/** Build the 5-day forecast endpoint URL for a city. */
+	public function forecastUrl(string $city): string {
+		return $this->baseUrl . '/forecast?q=' . rawurlencode($city)
+			. '&appid=' . rawurlencode($this->apiKey)
+			. '&units=' . $this->units . '&lang=en';
 	}
 
 	/**

@@ -31,7 +31,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $ip      = Weather::clientIp();
-$weather = new Weather($ip);
+$apiKey  = getenv('OPENWEATHERMAP_API_KEY');
+$weather = new Weather($ip, $apiKey === false ? '' : (string)$apiKey);
 
 // --- Request handling ----------------------------------------------------
 $content     = '';
@@ -70,11 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		}
 
 		// --- Current weather ---
-		$currentUrl = 'https://api.openweathermap.org/data/2.5/weather'
-			. '?q=' . rawurlencode($city)
-			. '&appid=' . rawurlencode($apiKey)
-			. '&units=metric'
-			. '&lang=en';
+		$currentUrl = $weather->currentWeatherUrl($city);
 
 		[$status, $currentData] = Weather::fetchJson($currentUrl);
 		if ($status !== 200) {
@@ -139,11 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		$content .= $weatherHtml;
 
 		// --- Forecast (best-effort: do not kill the page if it fails) ---
-		$forecastUrl = 'https://api.openweathermap.org/data/2.5/forecast'
-			. '?q=' . rawurlencode($city)
-			. '&appid=' . rawurlencode($apiKey)
-			. '&units=metric'
-			. '&lang=en';
+		$forecastUrl = $weather->forecastUrl($city);
 		try {
 			[$fStatus, $forecastData] = Weather::fetchJson($forecastUrl);
 			if ($fStatus !== 200) {
