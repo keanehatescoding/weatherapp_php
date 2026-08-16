@@ -131,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 		// --- Weather alerts (best-effort; shown above current conditions) ---
 		try {
-			$content .= Alerts::displayAlerts($meta['alerts'] ?? [], $tzOff);
+			$content .= Alerts::displayAlerts($meta['alerts'], $tzOff);
 		} catch (Throwable $e) {
 			Weather::log('Alerts render failed: ' . $e->getMessage(), $ip, $city);
 		}
@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 		// --- Hourly forecast (best-effort; keep current weather if it fails) ---
 		try {
-			$content .= Hourly::displayHourly($meta['hourly'] ?? [], $tzOff, $deg);
+			$content .= Hourly::displayHourly($meta['hourly'], $tzOff, $deg);
 		} catch (Throwable $e) {
 			Weather::log('Hourly render failed: ' . $e->getMessage(), $ip, $city);
 		}
