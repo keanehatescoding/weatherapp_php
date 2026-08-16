@@ -80,6 +80,21 @@ body {
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
 }
 
+/* Recent searches */
+.recent-searches {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.recent-chip {
+    border-radius: 20px;
+}
+
 /* Hourly forecast strip */
 .hourly-container {
     margin-top: 2rem;

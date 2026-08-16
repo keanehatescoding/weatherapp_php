@@ -27,6 +27,61 @@
 			.replace(/\s{2,}/g, ' ');               // collapse multiple spaces
 	}
 
+	// --- Recent searches (localStorage-backed, city-name searches only) ---
+	const RECENT_KEY = 'weather_recent_cities';
+	const RECENT_MAX = 5;
+	const recentBox = document.getElementById('recent-searches');
+
+	function loadRecent() {
+		if (typeof localStorage === 'undefined') { return []; }
+		try {
+			const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+			return Array.isArray(list) ? list.filter(function (c) { return typeof c === 'string' && c !== ''; }) : [];
+		} catch (e) {
+			return [];
+		}
+	}
+
+	function addRecent(city) {
+		const trimmed = city.trim();
+		if (trimmed === '' || typeof localStorage === 'undefined') { return; }
+		let list = loadRecent().filter(function (c) { return c.toLowerCase() !== trimmed.toLowerCase(); });
+		list.unshift(trimmed);
+		list = list.slice(0, RECENT_MAX);
+		try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* storage full/disabled */ }
+		renderRecent();
+	}
+
+	function renderRecent() {
+		if (!recentBox) { return; }
+		const list = loadRecent();
+		recentBox.querySelectorAll('button').forEach(function (btn) { btn.remove(); });
+		if (list.length === 0) {
+			recentBox.style.display = 'none';
+			return;
+		}
+		recentBox.style.display = 'flex';
+		list.forEach(function (city) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'btn btn-sm btn-outline-primary recent-chip';
+			btn.textContent = city;
+			btn.addEventListener('click', function () {
+				cityInput.value = city;
+				geoCoords = null;
+				cityInput.required = true;
+				if (latInput) { latInput.value = ''; }
+				if (lonInput) { lonInput.value = ''; }
+				warning.style.display = 'none';
+				if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
+				else { form.submit(); }
+			});
+			recentBox.appendChild(btn);
+		});
+	}
+
+	renderRecent();
+
 	cityInput.addEventListener('input', function () {
 		const original = this.value;
 		const sanitized = sanitizeCityName(original);
@@ -114,8 +169,12 @@
 		const cityVal = cityInput.value;
 		const tokenInput = document.getElementById('csrf-token');
 		const token = tokenInput ? tokenInput.value : '';
+		const checkedUnit = form.querySelector('input[name="unit"]:checked');
+		const unitVal = checkedUnit ? checkedUnit.value : 'metric';
 
-		let body = 'city=' + encodeURIComponent(cityVal) + '&csrf=' + encodeURIComponent(token);
+		let body = 'city=' + encodeURIComponent(cityVal)
+			+ '&csrf=' + encodeURIComponent(token)
+			+ '&unit=' + encodeURIComponent(unitVal);
 		if (geoCoords || (latVal !== '' && lonVal !== '')) {
 			const lat = geoCoords ? geoCoords.lat : latVal;
 			const lon = geoCoords ? geoCoords.lon : lonVal;
@@ -128,7 +187,7 @@
 				'X-Requested-With': 'XMLHttpRequest',
 				'Content-Type': 'application/x-www-form-urlencoded'
 			},
-			body: 'city=' + encodeURIComponent(cityVal) + '&csrf=' + encodeURIComponent(token),
+			body: body,
 			credentials: 'same-origin'
 		})
 			.then(function (r) { return r.json(); })
@@ -137,6 +196,9 @@
 				if (box && data && typeof data.html === 'string') {
 					box.innerHTML = data.html;
 					box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+				if (data && data.status === 200 && cityVal.trim() !== '') {
+					addRecent(cityVal);
 				}
 			})
 			.catch(function () {
