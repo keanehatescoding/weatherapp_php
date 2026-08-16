@@ -13,6 +13,11 @@ current coordinates.
 - **Current weather & 7‑day forecast** — temperature, "feels like", humidity,
   pressure, wind, sunrise/sunset, and an emoji icon, followed by a 7‑day outlook
   rendered from One Call 3.0 `daily` data.
+- **Hourly forecast** — a scrollable strip of the next 12 hours (temperature,
+  icon, and chance of precipitation) from One Call 3.0 `hourly` data.
+- **Weather alerts** — active severe‑weather warnings from national weather
+  agencies, sourced from One Call 3.0 `alerts` data, shown above the current
+  conditions when present.
 - **Geolocation** — request the browser's current position and look up weather
   by latitude/longitude (with a best‑effort reverse‑geocoded place name).
 - **°C / °F toggle** — unit preference is remembered across visits via

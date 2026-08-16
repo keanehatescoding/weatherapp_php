@@ -8,6 +8,8 @@ declare(strict_types=1);
  * Run: php tests/test_onecall.php
  */
 require_once __DIR__ . '/../app/Weather.php';
+require_once __DIR__ . '/../Hourly.php';
+require_once __DIR__ . '/../Alerts.php';
 
 $failures = 0;
 function check(bool $cond, string $label): void {
@@ -63,6 +65,8 @@ $weather = new Weather('203.0.113.9', 'TEST_KEY', $base, 'metric');
 // 1) URL builders point at the right endpoints + units.
 check(str_contains($weather->geocodeUrl('Paris'), '/geo/1.0/direct?q=Paris'), 'geocodeUrl targets geocoding API');
 check(str_contains($weather->oneCallUrl(-1.2, 36.8), '/data/3.0/onecall?lat=-1.2&lon=36.8'), 'oneCallUrl targets One Call 3.0');
+parse_str((string) parse_url($weather->oneCallUrl(-1.2, 36.8), PHP_URL_QUERY), $oneCallQuery);
+check(($oneCallQuery['exclude'] ?? null) === 'minutely', 'oneCallUrl excludes exactly minutely (keeps hourly + alerts)');
 check(str_contains($weather->oneCallUrl(-1.2, 36.8), 'units=metric'), 'oneCallUrl honours metric units');
 $wImp = new Weather('203.0.113.9', 'TEST_KEY', $base, 'imperial');
 check(str_contains($wImp->oneCallUrl(0, 0), 'units=imperial'), 'oneCallUrl honours imperial units');
@@ -82,6 +86,9 @@ if (!$threw) {
     check($meta['timezone_offset'] === 10800, 'fetchByCity returns timezone offset');
     check(is_array($meta['daily']) && count($meta['daily']) === 8, 'fetchByCity returns 8 daily slots');
     check(isset($meta['daily'][1]['temp']['min'], $meta['daily'][1]['temp']['max']), 'daily slots carry min/max temps');
+    check(is_array($meta['hourly']) && count($meta['hourly']) === 24, 'fetchByCity returns hourly slots');
+    check(is_array($meta['alerts']) && count($meta['alerts']) === 1, 'fetchByCity returns alerts');
+    check($meta['alerts'][0]['event'] === 'Heavy Rain Warning', 'alert carries event name');
 }
 
 // 3) City not found (404) maps to a user-safe exception.
@@ -115,6 +122,17 @@ if (!$threw2) {
     check($meta2['name'] === 'Your location', 'fetchByCoords reverse-geocodes a label');
     check(is_array($meta2['daily']) && count($meta2['daily']) === 8, 'fetchByCoords returns 8 daily slots');
 }
+
+// 6) Hourly + Alerts rendering (pure functions, no network needed).
+$hourlyHtml = Hourly::displayHourly($meta['hourly'] ?? [], 10800, '°C');
+check(str_contains($hourlyHtml, 'Hourly Forecast'), 'Hourly::displayHourly renders a heading');
+check(str_contains($hourlyHtml, '°C'), 'Hourly::displayHourly renders temps in the requested unit');
+check(Hourly::displayHourly([], 0, '°C') === '', 'Hourly::displayHourly returns empty string for no data');
+
+$alertsHtml = Alerts::displayAlerts($meta['alerts'] ?? [], 10800);
+check(str_contains($alertsHtml, 'Heavy Rain Warning'), 'Alerts::displayAlerts renders the event name');
+check(str_contains($alertsHtml, 'Kenya Meteorological Department'), 'Alerts::displayAlerts renders the sender');
+check(Alerts::displayAlerts([], 0) === '', 'Alerts::displayAlerts returns empty string for no alerts');
 
 proc_terminate($proc);
 proc_close($proc);

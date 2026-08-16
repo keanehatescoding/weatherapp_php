@@ -13,6 +13,8 @@ require_once __DIR__ . '/app/Weather.php';
 require_once __DIR__ . '/app/Env.php';
 require_once __DIR__ . '/Icons.php';
 require_once __DIR__ . '/Forecast.php';
+require_once __DIR__ . '/Hourly.php';
+require_once __DIR__ . '/Alerts.php';
 
 // Load configuration from a local .env file (if present). Real environment
 // variables always take precedence over values defined in .env.
@@ -127,7 +129,21 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		$weatherHtml .= '</div>';
 		$weatherHtml .= '</div>';
 
+		// --- Weather alerts (best-effort; shown above current conditions) ---
+		try {
+			$content .= Alerts::displayAlerts($meta['alerts'], $tzOff);
+		} catch (Throwable $e) {
+			Weather::log('Alerts render failed: ' . $e->getMessage(), $ip, $city);
+		}
+
 		$content .= $weatherHtml;
+
+		// --- Hourly forecast (best-effort; keep current weather if it fails) ---
+		try {
+			$content .= Hourly::displayHourly($meta['hourly'], $tzOff, $deg);
+		} catch (Throwable $e) {
+			Weather::log('Hourly render failed: ' . $e->getMessage(), $ip, $city);
+		}
 
 		// --- 7-day forecast (best-effort; keep current weather if it fails) ---
 		try {

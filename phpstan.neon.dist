@@ -4,6 +4,8 @@ parameters:
         - app
         - logic.php
         - Forecast.php
+        - Hourly.php
+        - Alerts.php
         - Icons.php
         - csrf.php
         - utils.php

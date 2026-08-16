@@ -37,6 +37,15 @@ function oneCallResponse(): array {
             'weather' => [['description' => 'clear sky', 'icon' => '01d']],
         ];
     }
+    $hourly = [];
+    for ($i = 0; $i < 24; $i++) {
+        $hourly[] = [
+            'dt'      => time() + $i * 3600,
+            'temp'    => 20 + $i,
+            'pop'     => 0.4,
+            'weather' => [['description' => 'clear sky', 'icon' => '01d']],
+        ];
+    }
     return [
         'timezone'        => 'Africa/Nairobi',
         'timezone_offset' => 10800,
@@ -51,7 +60,17 @@ function oneCallResponse(): array {
             'wind_speed' => 3.5,
             'weather'    => [['description' => 'clear sky', 'icon' => '01d']],
         ],
-        'daily' => $daily,
+        'hourly' => $hourly,
+        'daily'  => $daily,
+        'alerts' => [
+            [
+                'sender_name' => 'Kenya Meteorological Department',
+                'event'       => 'Heavy Rain Warning',
+                'start'       => time(),
+                'end'         => time() + 7200,
+                'description' => 'Heavy rainfall expected. Avoid low-lying areas.',
+            ],
+        ],
     ];
 }
 

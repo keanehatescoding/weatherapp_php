@@ -139,11 +139,12 @@ class Weather {
 
     /**
      * Build the One Call 3.0 endpoint URL for coordinates.
-     * Excludes minutely/hourly/alerts to stay within the free-tier call budget.
+     * Excludes only minutely (not useful here); hourly + alerts are kept
+     * since the response already includes them at no extra API cost.
      */
     public function oneCallUrl(float $lat, float $lon): string {
         return rtrim($this->baseUrl, '/') . '/data/3.0/onecall?lat=' . $lat . '&lon=' . $lon
-            . '&exclude=minutely,hourly,alerts&units=' . $this->units
+            . '&exclude=minutely&units=' . $this->units
             . '&lang=en&appid=' . rawurlencode($this->apiKey);
     }
 
@@ -152,7 +153,7 @@ class Weather {
      * current + 7-day daily weather via One Call 3.0. Returns a consolidated
      * array the controller can render directly.
      *
-     * @return array{name:string,country:string,state:string,lat:float,lon:float,timezone:string,timezone_offset:int,current:array,daily:array}
+     * @return array{name:string,country:string,state:string,lat:float,lon:float,timezone:string,timezone_offset:int,current:array,hourly:array,daily:array,alerts:array}
      * @throws UserFacingException on API key/quota/city-not-found/transport errors.
      */
     public function fetchByCity(string $city): array {
@@ -178,7 +179,7 @@ class Weather {
      * Fetch current + 7-day daily weather for explicit coordinates (used by the
      * geolocation feature). Best-effort reverse geocoding provides a label.
      *
-     * @return array{name:string,country:string,state:string,lat:float,lon:float,timezone:string,timezone_offset:int,current:array,daily:array}
+     * @return array{name:string,country:string,state:string,lat:float,lon:float,timezone:string,timezone_offset:int,current:array,hourly:array,daily:array,alerts:array}
      * @throws UserFacingException on API key/quota/transport errors.
      */
     public function fetchByCoords(float $lat, float $lon): array {
@@ -223,7 +224,9 @@ class Weather {
             'timezone'        => $one['timezone'] ?? '',
             'timezone_offset' => (int)($one['timezone_offset'] ?? 0),
             'current'         => $one['current'],
+            'hourly'          => is_array($one['hourly'] ?? null) ? $one['hourly'] : [],
             'daily'           => $one['daily'],
+            'alerts'          => is_array($one['alerts'] ?? null) ? $one['alerts'] : [],
         ];
     }
 
