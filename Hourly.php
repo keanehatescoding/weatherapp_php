@@ -31,7 +31,7 @@ class Hourly {
 		$html  = '';
 		$html .= '<div class="hourly-container mt-4">';
 		$html .= '<h3 class="text-center mb-3 text-white">Hourly Forecast</h3>';
-		$html .= '<div class="hourly-scroll">';
+		$html .= '<div class="hourly-scroll" tabindex="0" role="group" aria-label="Hourly forecast, scrollable">';
 
 		foreach ($hourly as $hour) {
 			$dt    = (int)($hour['dt'] ?? time()) + $tzOffset;

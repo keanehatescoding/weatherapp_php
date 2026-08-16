@@ -65,8 +65,8 @@ $weather = new Weather('203.0.113.9', 'TEST_KEY', $base, 'metric');
 // 1) URL builders point at the right endpoints + units.
 check(str_contains($weather->geocodeUrl('Paris'), '/geo/1.0/direct?q=Paris'), 'geocodeUrl targets geocoding API');
 check(str_contains($weather->oneCallUrl(-1.2, 36.8), '/data/3.0/onecall?lat=-1.2&lon=36.8'), 'oneCallUrl targets One Call 3.0');
-check(str_contains($weather->oneCallUrl(-1.2, 36.8), 'exclude=minutely'), 'oneCallUrl excludes only minutely (keeps hourly + alerts)');
-check(!str_contains($weather->oneCallUrl(-1.2, 36.8), 'exclude=minutely,hourly'), 'oneCallUrl no longer excludes hourly');
+parse_str((string) parse_url($weather->oneCallUrl(-1.2, 36.8), PHP_URL_QUERY), $oneCallQuery);
+check(($oneCallQuery['exclude'] ?? null) === 'minutely', 'oneCallUrl excludes exactly minutely (keeps hourly + alerts)');
 check(str_contains($weather->oneCallUrl(-1.2, 36.8), 'units=metric'), 'oneCallUrl honours metric units');
 $wImp = new Weather('203.0.113.9', 'TEST_KEY', $base, 'imperial');
 check(str_contains($wImp->oneCallUrl(0, 0), 'units=imperial'), 'oneCallUrl honours imperial units');
