@@ -36,7 +36,9 @@ jobs:
           done
 
       - name: Lint JavaScript
-        run: node --check sanitize.js
+        run: |
+          node --check sanitize.js
+          node --check sw.js
 
       - name: Run PHP unit tests
         run: |

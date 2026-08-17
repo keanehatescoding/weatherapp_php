@@ -1,6 +1,23 @@
 (function () {
 	'use strict';
 
+	// PWA basics: register the app-shell service worker and surface an
+	// offline indicator. Independent of the search form below.
+	if ('serviceWorker' in navigator) {
+		window.addEventListener('load', function () {
+			navigator.serviceWorker.register('sw.js').catch(function () { /* offline support is best-effort */ });
+		});
+	}
+	const offlineBanner = document.getElementById('offline-banner');
+	if (offlineBanner) {
+		function updateOfflineBanner() {
+			offlineBanner.style.display = navigator.onLine ? 'none' : 'block';
+		}
+		window.addEventListener('online', updateOfflineBanner);
+		window.addEventListener('offline', updateOfflineBanner);
+		updateOfflineBanner();
+	}
+
 	const cityInput = document.getElementById('city');
 	const warning = document.getElementById('city-warning');
 	const form = cityInput && cityInput.closest('form');
