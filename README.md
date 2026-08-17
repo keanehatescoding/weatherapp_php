@@ -39,6 +39,10 @@ current coordinates.
   APCu when available) for ~10 minutes to minimise quota usage.
 - **Configuration flexibility** — the API key can be supplied via an environment
   variable or a local `.env` file (see `.env.example`).
+- **Installable / offline‑capable (PWA)** — a web app manifest and a service
+  worker (`sw.js`) cache the static UI shell, so the search form still loads
+  (and the browser's "Add to Home Screen" / install prompt works) without a
+  network connection. Weather data itself always requires a live request.
 
 ---
 
@@ -112,8 +116,13 @@ your environment (or a `.env` file) as described above.
 | `app/Weather.php` | API client: geocoding, One Call 3.0, caching, rate limiting. |
 | `app/Env.php` | Dependency‑free `.env` loader. |
 | `Forecast.php` | Renders the 7‑day forecast markup. |
+| `Hourly.php` | Renders the hourly forecast strip. |
+| `Alerts.php` | Renders active severe‑weather alerts. |
 | `Icons.php` | Maps OpenWeatherMap icon codes to emoji. |
 | `utils.php` | Shared HTML‑escaping helper. |
+| `manifest.webmanifest` | PWA metadata (name, icons, theme colour). |
+| `sw.js` | Service worker: caches the static UI shell for offline use. |
+| `icons/` | App icons used by the manifest and `apple-touch-icon`. |
 | `tests/` | Unit and integration tests (no network or real key required). |
 | `.github/workflows/ci.yml` | Continuous integration pipeline. |
 
