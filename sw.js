@@ -57,8 +57,10 @@ self.addEventListener('fetch', function (event) {
 		event.respondWith(
 			fetch(request)
 				.then(function (response) {
-					const copy = response.clone();
-					caches.open(CACHE_NAME).then(function (cache) { cache.put('./index.html', copy); });
+					if (response.ok) {
+						const copy = response.clone();
+						caches.open(CACHE_NAME).then(function (cache) { cache.put('./index.html', copy); });
+					}
 					return response;
 				})
 				.catch(function () {
@@ -79,7 +81,7 @@ self.addEventListener('fetch', function (event) {
 		caches.match(request).then(function (cached) {
 			if (cached) { return cached; }
 			return fetch(request).then(function (response) {
-				if (isSameOrigin || SHELL_URLS.indexOf(request.url) !== -1) {
+				if (response.ok && (isSameOrigin || SHELL_URLS.indexOf(request.url) !== -1)) {
 					const copy = response.clone();
 					caches.open(CACHE_NAME).then(function (cache) { cache.put(request, copy); });
 				}
