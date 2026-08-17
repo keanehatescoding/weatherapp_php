@@ -34,12 +34,25 @@
 
 	function loadRecent() {
 		if (typeof localStorage === 'undefined') { return []; }
+		let raw;
 		try {
-			const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-			return Array.isArray(list) ? list.filter(function (c) { return typeof c === 'string' && c !== ''; }) : [];
+			raw = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
 		} catch (e) {
 			return [];
 		}
+		if (!Array.isArray(raw)) { return []; }
+
+		const seen = new Set();
+		const list = [];
+		raw.forEach(function (c) {
+			if (typeof c !== 'string') { return; }
+			const trimmed = c.trim();
+			const key = trimmed.toLowerCase();
+			if (trimmed === '' || seen.has(key)) { return; }
+			seen.add(key);
+			list.push(trimmed);
+		});
+		return list.slice(0, RECENT_MAX);
 	}
 
 	function addRecent(city) {
