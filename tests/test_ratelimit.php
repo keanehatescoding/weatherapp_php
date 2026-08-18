@@ -55,5 +55,47 @@ check($threw, '31st request throws RateLimitExceededException');
 // Clean up the rate-limit file we created.
 @unlink($rlFile);
 
+// --- Concurrency: N parallel processes hammering the same IP must never
+// let more than RATE_LIMIT_MAX total requests through (regression test for
+// the read-then-write race in enforceRateLimit()'s file-based counter). ---
+$concurrentIp = '198.51.100.99'; // TEST-NET-2, distinct from the IP above
+$rlFile2 = __DIR__ . '/../var/ratelimit/' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $concurrentIp) . '.json';
+@unlink($rlFile2);
+
+$workers        = 8;
+$attemptsEach   = 6; // 8 * 6 = 48 attempts, comfortably over the 30 limit
+$procs          = [];
+$pipes          = [];
+for ($i = 0; $i < $workers; $i++) {
+    $proc = proc_open(
+        ['php', __DIR__ . '/_rate_limit_worker.php', $concurrentIp, (string)$attemptsEach],
+        [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']],
+        $procPipes
+    );
+    if (is_resource($proc)) {
+        $procs[] = $proc;
+        $pipes[] = $procPipes[1];
+    }
+}
+
+$totalAccepted = 0;
+foreach ($pipes as $i => $pipe) {
+    $out = stream_get_contents($pipe);
+    fclose($pipe);
+    proc_close($procs[$i]);
+    if (preg_match('/accepted:(\d+)/', (string)$out, $m)) {
+        $totalAccepted += (int)$m[1];
+    }
+}
+
+check(count($procs) === $workers, 'all concurrent workers launched');
+check(
+    $totalAccepted === Weather::RATE_LIMIT_MAX,
+    "concurrent requests across $workers processes accept exactly " . Weather::RATE_LIMIT_MAX
+        . ' total (got ' . $totalAccepted . ')'
+);
+
+@unlink($rlFile2);
+
 echo "\n" . ($failures === 0 ? "ALL RATE-LIMIT TESTS PASSED\n" : "$failures FAILURE(S)\n");
 exit($failures === 0 ? 0 : 1);

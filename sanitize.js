@@ -29,6 +29,7 @@
 	if (!cityInput || !warning || !form) {
 		return; // page structure missing; server-side validation still protects us
 	}
+	const defaultWarningText = warning.textContent;
 
 	/**
 	 * Sanitize a city name client-side.
@@ -115,7 +116,14 @@
 	cityInput.addEventListener('input', function () {
 		const original = this.value;
 		const sanitized = sanitizeCityName(original);
-		warning.style.display = original === sanitized ? 'none' : 'block';
+		if (original !== sanitized) {
+			// Restore the sanitization message in case a geolocation error
+			// left a different message displayed in this same box.
+			warning.textContent = defaultWarningText;
+			warning.style.display = 'block';
+		} else {
+			warning.style.display = 'none';
+		}
 		this.value = sanitized;
 		// Typing a city cancels any pending geolocation choice.
 		if (sanitized !== '') {
@@ -157,15 +165,25 @@
 		});
 	}
 
+	// Fetch the CSRF token (with a couple of retries on failure) and expose
+	// a promise that submit() waits on, so a fast geolocation resolve or a
+	// flaky first attempt can't send a request with an empty token.
 	const csrfInput = document.getElementById('csrf-token');
-	if (csrfInput && 'fetch' in window) {
-		fetch('csrf.php', { credentials: 'same-origin' })
+	function fetchCsrfToken(retriesLeft) {
+		if (!('fetch' in window)) { return Promise.resolve(null); }
+		return fetch('csrf.php', { credentials: 'same-origin' })
 			.then(function (r) { return r.json(); })
-			.then(function (data) {
-				if (data && data.token) { csrfInput.value = data.token; }
-			})
-			.catch(function () { /* server-side still validates */ });
+			.then(function (data) { return (data && data.token) ? data.token : null; })
+			.catch(function () {
+				return retriesLeft > 0 ? fetchCsrfToken(retriesLeft - 1) : null;
+			});
 	}
+	const csrfReady = csrfInput
+		? fetchCsrfToken(2).then(function (token) {
+			if (token) { csrfInput.value = token; }
+			return token;
+		})
+		: Promise.resolve(null);
 
 	// Fetch a CSRF token and embed it in the form before submit.
 	const unitRadios = form.querySelectorAll('input[name="unit"]');
@@ -186,8 +204,17 @@
 			}
 		});
 	});
+	// Guards against overlapping submits — e.g. a recent-search chip or the
+	// unit toggle re-triggering submit() while a prior fetch is still
+	// in-flight, which would otherwise race to write weather-result/addRecent.
+	let requestInFlight = false;
 	form.addEventListener('submit', function (e) {
 		e.preventDefault();
+		if (requestInFlight) {
+			return;
+		}
+		requestInFlight = true;
+
 		const btn = this.querySelector('button[type="submit"]');
 		if (btn) {
 			btn.disabled = true;
@@ -197,28 +224,31 @@
 		const latVal = latInput ? latInput.value : '';
 		const lonVal = lonInput ? lonInput.value : '';
 		const cityVal = cityInput.value;
-		const tokenInput = document.getElementById('csrf-token');
-		const token = tokenInput ? tokenInput.value : '';
 		const checkedUnit = form.querySelector('input[name="unit"]:checked');
 		const unitVal = checkedUnit ? checkedUnit.value : 'metric';
 
-		let body = 'city=' + encodeURIComponent(cityVal)
-			+ '&csrf=' + encodeURIComponent(token)
-			+ '&unit=' + encodeURIComponent(unitVal);
-		if (geoCoords || (latVal !== '' && lonVal !== '')) {
-			const lat = geoCoords ? geoCoords.lat : latVal;
-			const lon = geoCoords ? geoCoords.lon : lonVal;
-			body += '&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon);
-		}
+		csrfReady.then(function (freshToken) {
+			const tokenInput = document.getElementById('csrf-token');
+			const token = freshToken || (tokenInput ? tokenInput.value : '');
 
-		fetch('logic.php', {
-			method: 'POST',
-			headers: {
-				'X-Requested-With': 'XMLHttpRequest',
-				'Content-Type': 'application/x-www-form-urlencoded'
-			},
-			body: body,
-			credentials: 'same-origin'
+			let body = 'city=' + encodeURIComponent(cityVal)
+				+ '&csrf=' + encodeURIComponent(token)
+				+ '&unit=' + encodeURIComponent(unitVal);
+			if (geoCoords || (latVal !== '' && lonVal !== '')) {
+				const lat = geoCoords ? geoCoords.lat : latVal;
+				const lon = geoCoords ? geoCoords.lon : lonVal;
+				body += '&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon);
+			}
+
+			return fetch('logic.php', {
+				method: 'POST',
+				headers: {
+					'X-Requested-With': 'XMLHttpRequest',
+					'Content-Type': 'application/x-www-form-urlencoded'
+				},
+				body: body,
+				credentials: 'same-origin'
+			});
 		})
 			.then(function (r) { return r.json(); })
 			.then(function (data) {
@@ -236,6 +266,7 @@
 				form.submit();
 			})
 			.finally(function () {
+				requestInFlight = false;
 				if (btn) {
 					btn.disabled = false;
 					btn.textContent = 'Get Weather 🔍';

@@ -38,6 +38,14 @@ if (!is_resource($proc)) {
     echo "FAIL: could not start stub server\n";
     exit(1);
 }
+// Guarantee cleanup even if an unexpected/uncaught throwable below skips
+// the explicit proc_terminate() at the bottom of this script.
+register_shutdown_function(static function () use ($proc) {
+    if (is_resource($proc)) {
+        @proc_terminate($proc);
+        @proc_close($proc);
+    }
+});
 
 // Give the server a moment to bind.
 usleep(500000);

@@ -346,28 +346,40 @@ class Weather {
         }
 
         if ($file !== null) {
-            $hits = [];
-            if (is_file($file)) {
-                $raw = @file_get_contents($file);
-                $dec = $raw !== false ? json_decode($raw, true) : null;
-                if (is_array($dec)) {
-                    $hits = $dec;
+            // Hold an exclusive lock across the whole read-modify-write so
+            // concurrent requests from the same IP can't both read the same
+            // pre-append hit count and both slip under RATE_LIMIT_MAX.
+            $handle = @fopen($file, 'c+');
+            if ($handle !== false && flock($handle, LOCK_EX)) {
+                $raw  = stream_get_contents($handle);
+                $dec  = $raw !== false && $raw !== '' ? json_decode($raw, true) : null;
+                $hits = is_array($dec) ? $dec : [];
+                $hits = array_values(array_filter($hits, function ($ts) use ($now) {
+                    return ($now - (int)$ts) < self::RATE_LIMIT_WINDOW;
+                }));
+                if (count($hits) >= self::RATE_LIMIT_MAX) {
+                    $retry = max(1, ((int)$hits[0] + self::RATE_LIMIT_WINDOW) - $now);
+                    flock($handle, LOCK_UN);
+                    fclose($handle);
+                    self::sendRetryAfter($retry);
+                    self::sendResponseCode(429);
+                    throw new RateLimitExceededException(
+                        'We only allow ' . self::RATE_LIMIT_MAX . ' requests per day. Try again later.'
+                    );
                 }
+                $hits[] = $now;
+                rewind($handle);
+                ftruncate($handle, 0);
+                fwrite($handle, json_encode($hits));
+                fflush($handle);
+                flock($handle, LOCK_UN);
+                fclose($handle);
+                return;
             }
-            $hits = array_values(array_filter($hits, function ($ts) use ($now) {
-                return ($now - (int)$ts) < self::RATE_LIMIT_WINDOW;
-            }));
-            if (count($hits) >= self::RATE_LIMIT_MAX) {
-                $retry = max(1, ((int)$hits[0] + self::RATE_LIMIT_WINDOW) - $now);
-                self::sendRetryAfter($retry);
-                self::sendResponseCode(429);
-                throw new RateLimitExceededException(
-                    'We only allow ' . self::RATE_LIMIT_MAX . ' requests per day. Try again later.'
-                );
+            if ($handle !== false) {
+                fclose($handle);
             }
-            $hits[] = $now;
-            @file_put_contents($file, json_encode($hits), LOCK_EX);
-            return;
+            // Couldn't open/lock the file — fall through to the session store.
         }
 
         // Session fallback
@@ -437,6 +449,42 @@ class Weather {
     }
 
     /**
+     * Best-effort exclusive lock on the cache slot for $url, used to
+     * serialize concurrent cache-miss fetches. Returns null (proceed
+     * unlocked) if a lock file can't be opened/acquired.
+     *
+     * @return resource|null
+     */
+    private static function acquireFetchLock(string $url) {
+        $cacheFile = self::cacheFile($url);
+        if ($cacheFile === null) {
+            return null;
+        }
+        $dir = dirname($cacheFile);
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return null;
+        }
+        $handle = @fopen($cacheFile . '.lock', 'c');
+        if ($handle === false) {
+            return null;
+        }
+        if (!flock($handle, LOCK_EX)) {
+            fclose($handle);
+            return null;
+        }
+        return $handle;
+    }
+
+    /** @param resource|null $handle */
+    private static function releaseFetchLock($handle): void {
+        if ($handle === null) {
+            return;
+        }
+        flock($handle, LOCK_UN);
+        fclose($handle);
+    }
+
+    /**
      * HTTP GET returning [http_status, decoded_json].
      * Uses cURL with timeouts + SSL verification and surfaces real API
      * error payloads.
@@ -462,38 +510,58 @@ class Weather {
             return [200, $cached];
         }
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS      => 5,
-            CURLOPT_CONNECTTIMEOUT => self::API_CONNECT_TIMEOUT,
-            CURLOPT_TIMEOUT        => self::API_TIMEOUT,
-            CURLOPT_USERAGENT      => 'WeatherApp/1.0 (+https://github.com/keanehatescoding/weatherapp_php)',
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-        $body   = curl_exec($ch);
-        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        $err    = curl_error($ch);
-        curl_close($ch);
-
-        if ($body === false) {
-            throw new RuntimeException("Failed to reach weather service: $err");
-        }
-
-        $data = json_decode($body, true);
-        if (!is_array($data)) {
-            throw new RuntimeException('Invalid JSON response from weather API.');
-        }
-
-        // Cache 2xx payloads.
-        if ($status >= 200 && $status < 300) {
-            self::cacheStore($url, $data);
-            if (function_exists('apcu_store')) {
-                @apcu_store($url, $data, self::CACHE_TTL);
+        // Serialize concurrent misses for the same URL so a cache expiry
+        // doesn't fan out into N simultaneous upstream requests: the first
+        // request to acquire the lock fetches and populates the cache,
+        // everyone else blocks, then rechecks the (now warm) cache first.
+        $lockHandle = self::acquireFetchLock($url);
+        if ($lockHandle !== null) {
+            $cached = self::cacheFetch($url);
+            if ($cached !== null) {
+                self::releaseFetchLock($lockHandle);
+                if (function_exists('apcu_store')) {
+                    @apcu_store($url, $cached, self::CACHE_TTL);
+                }
+                return [200, $cached];
             }
         }
 
-        return [$status, $data];
+        try {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 5,
+                CURLOPT_CONNECTTIMEOUT => self::API_CONNECT_TIMEOUT,
+                CURLOPT_TIMEOUT        => self::API_TIMEOUT,
+                CURLOPT_USERAGENT      => 'WeatherApp/1.0 (+https://github.com/keanehatescoding/weatherapp_php)',
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $body   = curl_exec($ch);
+            $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $err    = curl_error($ch);
+            curl_close($ch);
+
+            if ($body === false) {
+                throw new RuntimeException("Failed to reach weather service: $err");
+            }
+
+            $data = json_decode($body, true);
+            if (!is_array($data)) {
+                throw new RuntimeException('Invalid JSON response from weather API.');
+            }
+
+            // Cache 2xx payloads.
+            if ($status >= 200 && $status < 300) {
+                self::cacheStore($url, $data);
+                if (function_exists('apcu_store')) {
+                    @apcu_store($url, $data, self::CACHE_TTL);
+                }
+            }
+
+            return [$status, $data];
+        } finally {
+            self::releaseFetchLock($lockHandle);
+        }
     }
 }

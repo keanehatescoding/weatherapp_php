@@ -14,11 +14,15 @@ class Forecast {
 	/**
 	 * Render the daily forecast as HTML.
 	 *
-	 * @param array $daily OpenWeatherMap One Call 3.0 `daily` array. Each entry
-	 *                     has `dt`, `temp` (min/max) and `weather` (icon/desc).
+	 * @param array $daily     OpenWeatherMap One Call 3.0 `daily` array. Each
+	 *                         entry has `dt`, `temp` (min/max) and `weather`
+	 *                         (icon/desc).
+	 * @param int   $tzOffset  Location UTC offset in seconds, so the day-of-week
+	 *                         label reflects the local day `dt` represents
+	 *                         (mirrors Hourly::displayHourly and Alerts::displayAlerts).
 	 * @return string HTML markup (sanitized).
 	 */
-	public static function displayForecast(array $daily): string {
+	public static function displayForecast(array $daily, int $tzOffset = 0): string {
 		if (!is_array($daily) || $daily === []) {
 			return '';
 		}
@@ -42,7 +46,7 @@ class Forecast {
 			$emoji   = Icons::get($icon);
 			$tempMax = round((float)($day['temp']['max'] ?? 0));
 			$tempMin = round((float)($day['temp']['min'] ?? 0));
-			$dayName = $dayNames[(int) gmdate('w', $dt)];
+			$dayName = $dayNames[(int) gmdate('w', $dt + $tzOffset)];
 
 			$html .= '<div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-3">';
 			$html .= '<div class="forecast-item text-center p-3 border rounded bg-white bg-opacity-90 shadow-sm h-100">';
