@@ -68,7 +68,7 @@ $procs          = [];
 $pipes          = [];
 for ($i = 0; $i < $workers; $i++) {
     $proc = proc_open(
-        ['php', __DIR__ . '/_rate_limit_worker.php', $concurrentIp, (string)$attemptsEach],
+        [PHP_BINARY, __DIR__ . '/_rate_limit_worker.php', $concurrentIp, (string)$attemptsEach],
         [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']],
         $procPipes
     );
