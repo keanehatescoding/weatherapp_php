@@ -80,8 +80,10 @@ jobs:
       - name: Check for leftover secrets / obvious issues
         run: |
           echo "Scanning for accidentally committed API keys..."
-          if grep -rIln "OPENWEATHERMAP_API_KEY=\|appid=[A-Za-z0-9]\{20,\}" --include="*.php" . ; then
-            echo "::warning::Possible API key in source — verify it's not a real secret."
+          if grep -rIln "OPENWEATHERMAP_API_KEY=[A-Za-z0-9]\{20,\}\|appid=[A-Za-z0-9]\{20,\}" \
+              --exclude-dir=.git --exclude-dir=vendor --exclude-dir=var . ; then
+            echo "::error::Possible API key found in source — verify it's not a real secret."
+            exit 1
           else
             echo "No API keys found in source."
           fi

@@ -147,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 		// --- 7-day forecast (best-effort; keep current weather if it fails) ---
 		try {
-			$content .= Forecast::displayForecast($meta['daily']);
+			$content .= Forecast::displayForecast($meta['daily'], $tzOff);
 		} catch (Throwable $e) {
 			Weather::log('Forecast render failed: ' . $e->getMessage(), $ip, $city);
 			$content .= '<p class="text-center text-muted mt-3 mb-0">'

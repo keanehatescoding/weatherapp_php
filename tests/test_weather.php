@@ -46,6 +46,22 @@ check(str_contains($out, '7-Day Forecast'), 'forecast contains 7-day heading');
 check(str_contains($out, '🌤️') || str_contains($out, '☀️'), 'forecast contains an emoji');
 check(str_contains($out, '°/'), 'forecast shows temp range');
 
+// --- Forecast day-of-week label honours tzOffset (regression: a location's
+// UTC offset can push `dt` across the UTC day boundary, e.g. late-UTC
+// timestamps at UTC+14 — the label must reflect the *local* day). ---
+$lateUtc      = gmmktime(23, 30, 0, (int)gmdate('n'), (int)gmdate('j'), (int)gmdate('Y'));
+$tzOffset     = 14 * 3600; // UTC+14 (e.g. Kiribati)
+$dayNames     = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+$expectedDay  = $dayNames[(int) gmdate('w', $lateUtc + $tzOffset)];
+$unshiftedDay = $dayNames[(int) gmdate('w', $lateUtc)];
+$tzSample = [
+    ['dt' => 0, 'temp' => ['min' => 0, 'max' => 0], 'weather' => [['description' => '', 'icon' => '01d']]], // "today", dropped
+    ['dt' => $lateUtc, 'temp' => ['min' => 10, 'max' => 20], 'weather' => [['description' => 'clear sky', 'icon' => '01d']]],
+];
+$tzOut = Forecast::displayForecast($tzSample, $tzOffset);
+check($expectedDay !== $unshiftedDay, 'test fixture crosses a UTC day boundary (sanity check)');
+check(str_contains($tzOut, '>' . $expectedDay . '<'), "forecast day label honours tzOffset (expected $expectedDay)");
+
 // --- Weather::esc() ---
 $escapedScript = '&lt;script&gt;';  // literal <script>
 check(Weather::esc('<script>') === $escapedScript, 'esc escapes angle brackets');
