@@ -48,7 +48,7 @@ current coordinates.
 
 ## Requirements
 
-- PHP **8.1+** with the `curl`, `json`, and `session` extensions.
+- PHP **8.2+** with the `curl`, `json`, and `session` extensions.
 - An [OpenWeatherMap](https://openweathermap.org) API key.
   > **Note:** One Call 3.0 (used for the 7‑day forecast) is free on the standard
   > tier, but you must subscribe the key to the **One Call API** once in the
@@ -177,9 +177,9 @@ every push and pull request.
 
 ## License
 
-Distributed under the **GNU General Public License v2.1 (GPL‑2.1)**. See the
-[LICENSE](LICENSE) file for the full text. By using, modifying, or distributing
-this software you agree to the terms of that license.
+Distributed under the **GNU Lesser General Public License v2.1 (LGPL‑2.1)**.
+See the [LICENSE](LICENSE) file for the full text. By using, modifying, or
+distributing this software you agree to the terms of that license.
 
 ---
 

@@ -5,7 +5,16 @@
 
 $finder = PhpCsFixer\Finder::create()
     ->in([__DIR__ . '/app', __DIR__ . '/tests'])
-    ->append([__FILE__ => __FILE__])
+    ->append([
+        __FILE__,
+        __DIR__ . '/logic.php',
+        __DIR__ . '/csrf.php',
+        __DIR__ . '/utils.php',
+        __DIR__ . '/Forecast.php',
+        __DIR__ . '/Hourly.php',
+        __DIR__ . '/Alerts.php',
+        __DIR__ . '/Icons.php',
+    ])
     ->name('*.php');
 
 return (new PhpCsFixer\Config())

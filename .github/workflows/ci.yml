@@ -24,7 +24,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Composer dependencies (incl. dev tools)
         run: composer install --no-interaction --prefer-dist
@@ -68,7 +68,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Static analysis (PHPStan)
-        run: php vendor/bin/phpstan analyse -c phpstan.neon.dist --no-progress
+        run: php vendor/bin/phpstan analyse -c phpstan.neon.dist --no-progress --memory-limit=512M
 
       - name: Code style (PHP-CS-Fixer, dry-run)
         run: php vendor/bin/php-cs-fixer fix --dry-run --diff
