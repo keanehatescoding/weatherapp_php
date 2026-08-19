@@ -25,157 +25,164 @@ loadEnvFile();
  * send the Set-Cookie header and session-backed rate limiting silently breaks.
  */
 if (session_status() === PHP_SESSION_NONE) {
-	session_start([
-		'cookie_httponly' => true,
-		'cookie_samesite' => 'Lax',
-		'use_strict_mode' => true,
-	]);
+    session_start([
+        'cookie_httponly' => true,
+        'cookie_samesite' => 'Lax',
+        'use_strict_mode' => true,
+    ]);
 }
 
 $ip      = Weather::clientIp();
-$apiKey  = getenv('OPENWEATHERMAP_API_KEY');
+$rawKey  = getenv('OPENWEATHERMAP_API_KEY');
+$apiKey  = $rawKey === false ? '' : (string)$rawKey;
 $units   = ($_POST['unit'] ?? 'metric') === 'imperial' ? 'imperial' : 'metric';
-$weather = new Weather($ip, $apiKey === false ? '' : (string)$apiKey, '', $units);
+$weather = new Weather($ip, $apiKey, '', $units);
 
 // --- Request handling ----------------------------------------------------
 $content     = '';
 $statusCode  = 200;
+// Defined up front (not just inside the try block) so every catch block can
+// safely pass it to Weather::log()'s non-nullable string $city parameter,
+// even if an exception is thrown before the real POST value is read below.
+$city        = '';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-	$statusCode = 405;
-	$content    = Weather::errorAlert('Method ' . $_SERVER['REQUEST_METHOD'] . ' not allowed.');
+    $statusCode = 405;
+    if (!headers_sent()) {
+        header('Allow: POST');
+    }
+    $content = Weather::errorAlert('Method ' . $_SERVER['REQUEST_METHOD'] . ' not allowed.');
 } else {
-	try {
-		// CSRF protection (token issued by csrf.php, embedded by JS).
-		if (!Weather::validateCsrf($_POST['csrf'] ?? null)) {
-			throw new CsrfException('Security check failed. Refresh the page and try again.');
-		}
+    try {
+        // CSRF protection (token issued by csrf.php, embedded by JS).
+        if (!Weather::validateCsrf($_POST['csrf'] ?? null)) {
+            throw new CsrfException('Security check failed. Refresh the page and try again.');
+        }
 
-		// Input handling — coordinates (geolocation) take precedence over city.
-		$city = trim((string)($_POST['city'] ?? ''));
-		$lat  = filter_var($_POST['lat'] ?? '', FILTER_VALIDATE_FLOAT);
-		$lon  = filter_var($_POST['lon'] ?? '', FILTER_VALIDATE_FLOAT);
-		$usingCoords = $lat !== false && $lon !== false
-			&& abs($lat) <= 90 && abs($lon) <= 180;
+        // Input handling — coordinates (geolocation) take precedence over city.
+        $city = trim((string)($_POST['city'] ?? ''));
+        $lat  = filter_var($_POST['lat'] ?? '', FILTER_VALIDATE_FLOAT);
+        $lon  = filter_var($_POST['lon'] ?? '', FILTER_VALIDATE_FLOAT);
+        $usingCoords = $lat !== false && $lon !== false
+            && abs($lat) <= 90 && abs($lon) <= 180;
 
-		if (!$usingCoords) {
-			if ($city === '') {
-				throw new InvalidArgumentException('You must enter a city.');
-			}
-			// Mirrors sanitize.js — letters (any script, incl. accents),
-			// spaces, . ' - ( ). 2–100 chars. 'D' = strict $ anchor.
-			if (!preg_match('/^[\p{L}\p{M}\s.\'\-()]{2,100}$/uD', $city)) {
-				throw new InvalidArgumentException(
-					'Invalid city name — only letters, spaces, and ( ) - . \' are allowed.'
-				);
-			}
-		}
+        if (!$usingCoords) {
+            if ($city === '') {
+                throw new InvalidArgumentException('You must enter a city.');
+            }
+            // Mirrors sanitize.js — letters (any script, incl. accents),
+            // spaces, . ' - ( ). 2–100 chars. 'D' = strict $ anchor.
+            if (!preg_match('/^[\p{L}\p{M}\s.\'\-()]{2,100}$/uD', $city)) {
+                throw new InvalidArgumentException(
+                    'Invalid city name — only letters, spaces, and ( ) - . \' are allowed.'
+                );
+            }
+        }
 
-		$weather->enforceRateLimit();
+        $weather->enforceRateLimit();
 
-		$apiKey = getenv('OPENWEATHERMAP_API_KEY');
-		if ($apiKey === false || $apiKey === '') {
-			throw new UserFacingException(
-				'Weather API key is not configured. Set the OPENWEATHERMAP_API_KEY environment variable.'
-			);
-		}
+        if ($apiKey === '') {
+            throw new UserFacingException(
+                'Weather API key is not configured. Set the OPENWEATHERMAP_API_KEY environment variable.'
+            );
+        }
 
-		// --- Current weather + 7-day forecast ---
-		// Prefer explicit coordinates (geolocation); otherwise resolve the city.
-		$meta = $usingCoords
-			? $weather->fetchByCoords($lat, $lon)
-			: $weather->fetchByCity($city);
-		$current    = $meta['current'];
-		$tzOff      = $meta['timezone_offset'];
-		$name       = $meta['name'];
-		$country    = $meta['country'];
-		$weatherArr = $current['weather'][0] ?? [];
-		$deg        = $units === 'imperial' ? '°F' : '°C';
+        // --- Current weather + 7-day forecast ---
+        // Prefer explicit coordinates (geolocation); otherwise resolve the city.
+        $meta = $usingCoords
+            ? $weather->fetchByCoords($lat, $lon)
+            : $weather->fetchByCity($city);
+        $current    = $meta['current'];
+        $tzOff      = $meta['timezone_offset'];
+        $name       = $meta['name'];
+        $country    = $meta['country'];
+        $weatherArr = $current['weather'][0] ?? [];
+        $deg        = $units === 'imperial' ? '°F' : '°C';
 
-		$locNow       = time() + $tzOff;
-		$sunriseLocal = isset($current['sunrise']) ? (int)$current['sunrise'] + $tzOff : null;
-		$sunsetLocal  = isset($current['sunset'])   ? (int)$current['sunset']   + $tzOff : null;
+        $locNow       = time() + $tzOff;
+        $sunriseLocal = isset($current['sunrise']) ? (int)$current['sunrise'] + $tzOff : null;
+        $sunsetLocal  = isset($current['sunset'])   ? (int)$current['sunset']   + $tzOff : null;
 
-		$weatherHtml  = '';
-		$weatherHtml .= '<div class="alert alert-info text-center mb-4 bg-white bg-opacity-90 border-0 shadow-lg" role="alert">';
-		if ($name !== '' || $country !== '') {
-			$weatherHtml .= '<h4 class="text-primary mb-3 fw-bold">'
-				. Weather::esc($name) . ($country !== '' ? ', ' . Weather::esc($country) : '')
-				. '</h4>';
-		}
-		$weatherHtml .= '<div class="row text-center g-0">';
-		$weatherHtml .= '<div class="col-6 mb-2">';
-		$weatherHtml .= '<p class="mb-1"><strong>Temperature:</strong> ' . Weather::esc(round((float)($current['temp'] ?? 0))) . $deg . '</p>';
-		$weatherHtml .= '<p class="mb-1"><strong>Feels like:</strong> ' . Weather::esc(round((float)($current['feels_like'] ?? 0))) . $deg . '</p>';
-		$weatherHtml .= '<p class="mb-1"><strong>Humidity:</strong> ' . Weather::esc((int)($current['humidity'] ?? 0)) . '%</p>';
-		$weatherHtml .= '<p class="mb-1"><strong>Weather:</strong> '
-			. Weather::esc(ucfirst($weatherArr['description'] ?? '')) . '</p>';
-		$weatherHtml .= '</div>';
-		$weatherHtml .= '<div class="col-6 mb-2">';
-		$weatherHtml .= '<p class="mb-1"><strong>Pressure:</strong> ' . Weather::esc((int)($current['pressure'] ?? 0)) . ' hPa</p>';
-		$weatherHtml .= '<p class="mb-1"><strong>Wind:</strong> '
-			. Weather::esc(round((float)($current['wind_speed'] ?? 0), 1)) . ' m/s</p>';
-		$weatherHtml .= '<p class="mb-1"><strong>Sunrise:</strong> '
-			. ($sunriseLocal !== null ? Weather::esc(gmdate('g:i a', $sunriseLocal)) : '—') . '</p>';
-		$weatherHtml .= '<p class="mb-1"><strong>Sunset:</strong> '
-			. ($sunsetLocal !== null ? Weather::esc(gmdate('g:i a', $sunsetLocal)) : '—') . '</p>';
-		$weatherHtml .= '</div>';
-		$weatherHtml .= '</div>';
-		$weatherHtml .= '<div class="mt-3">';
-		$weatherHtml .= '<div class="weather-emoji mb-2" style="font-size: 3rem;">'
-			. Icons::get($weatherArr['icon'] ?? '') . '</div>';
-		$weatherHtml .= '<p class="text-muted mb-0"><strong>Local time:</strong> '
-			. Weather::esc(gmdate('F j, Y, g:i a', $locNow)) . '</p>';
-		$weatherHtml .= '</div>';
-		$weatherHtml .= '</div>';
+        $weatherHtml  = '';
+        $weatherHtml .= '<div class="alert alert-info text-center mb-4 bg-white bg-opacity-90 border-0 shadow-lg" role="alert">';
+        if ($name !== '' || $country !== '') {
+            $weatherHtml .= '<h4 class="text-primary mb-3 fw-bold">'
+                . Weather::esc($name) . ($country !== '' ? ', ' . Weather::esc($country) : '')
+                . '</h4>';
+        }
+        $weatherHtml .= '<div class="row text-center g-0">';
+        $weatherHtml .= '<div class="col-6 mb-2">';
+        $weatherHtml .= '<p class="mb-1"><strong>Temperature:</strong> ' . Weather::esc(round((float)($current['temp'] ?? 0))) . $deg . '</p>';
+        $weatherHtml .= '<p class="mb-1"><strong>Feels like:</strong> ' . Weather::esc(round((float)($current['feels_like'] ?? 0))) . $deg . '</p>';
+        $weatherHtml .= '<p class="mb-1"><strong>Humidity:</strong> ' . Weather::esc((int)($current['humidity'] ?? 0)) . '%</p>';
+        $weatherHtml .= '<p class="mb-1"><strong>Weather:</strong> '
+            . Weather::esc(ucfirst($weatherArr['description'] ?? '')) . '</p>';
+        $weatherHtml .= '</div>';
+        $weatherHtml .= '<div class="col-6 mb-2">';
+        $weatherHtml .= '<p class="mb-1"><strong>Pressure:</strong> ' . Weather::esc((int)($current['pressure'] ?? 0)) . ' hPa</p>';
+        $weatherHtml .= '<p class="mb-1"><strong>Wind:</strong> '
+            . Weather::esc(round((float)($current['wind_speed'] ?? 0), 1)) . ' m/s</p>';
+        $weatherHtml .= '<p class="mb-1"><strong>Sunrise:</strong> '
+            . ($sunriseLocal !== null ? Weather::esc(gmdate('g:i a', $sunriseLocal)) : '—') . '</p>';
+        $weatherHtml .= '<p class="mb-1"><strong>Sunset:</strong> '
+            . ($sunsetLocal !== null ? Weather::esc(gmdate('g:i a', $sunsetLocal)) : '—') . '</p>';
+        $weatherHtml .= '</div>';
+        $weatherHtml .= '</div>';
+        $weatherHtml .= '<div class="mt-3">';
+        $weatherHtml .= '<div class="weather-emoji mb-2" style="font-size: 3rem;">'
+            . Icons::get($weatherArr['icon'] ?? '') . '</div>';
+        $weatherHtml .= '<p class="text-muted mb-0"><strong>Local time:</strong> '
+            . Weather::esc(gmdate('F j, Y, g:i a', $locNow)) . '</p>';
+        $weatherHtml .= '</div>';
+        $weatherHtml .= '</div>';
 
-		// --- Weather alerts (best-effort; shown above current conditions) ---
-		try {
-			$content .= Alerts::displayAlerts($meta['alerts'], $tzOff);
-		} catch (Throwable $e) {
-			Weather::log('Alerts render failed: ' . $e->getMessage(), $ip, $city);
-		}
+        // --- Weather alerts (best-effort; shown above current conditions) ---
+        try {
+            $content .= Alerts::displayAlerts($meta['alerts'], $tzOff);
+        } catch (Throwable $e) {
+            Weather::log('Alerts render failed: ' . $e->getMessage(), $ip, $city);
+        }
 
-		$content .= $weatherHtml;
+        $content .= $weatherHtml;
 
-		// --- Hourly forecast (best-effort; keep current weather if it fails) ---
-		try {
-			$content .= Hourly::displayHourly($meta['hourly'], $tzOff, $deg);
-		} catch (Throwable $e) {
-			Weather::log('Hourly render failed: ' . $e->getMessage(), $ip, $city);
-		}
+        // --- Hourly forecast (best-effort; keep current weather if it fails) ---
+        try {
+            $content .= Hourly::displayHourly($meta['hourly'], $tzOff, $deg);
+        } catch (Throwable $e) {
+            Weather::log('Hourly render failed: ' . $e->getMessage(), $ip, $city);
+        }
 
-		// --- 7-day forecast (best-effort; keep current weather if it fails) ---
-		try {
-			$content .= Forecast::displayForecast($meta['daily'], $tzOff);
-		} catch (Throwable $e) {
-			Weather::log('Forecast render failed: ' . $e->getMessage(), $ip, $city);
-			$content .= '<p class="text-center text-muted mt-3 mb-0">'
-				. 'Could not load the extended forecast right now. Try again later.'
-				. '</p>';
-		}
+        // --- 7-day forecast (best-effort; keep current weather if it fails) ---
+        try {
+            $content .= Forecast::displayForecast($meta['daily'], $tzOff);
+        } catch (Throwable $e) {
+            Weather::log('Forecast render failed: ' . $e->getMessage(), $ip, $city);
+            $content .= '<p class="text-center text-muted mt-3 mb-0">'
+                . 'Could not load the extended forecast right now. Try again later.'
+                . '</p>';
+        }
 
-	} catch (RateLimitExceededException $e) {
-		$statusCode = 429;
-		Weather::log('Rate limit exceeded', $ip);
-		$content .= Weather::errorAlert($e->getMessage());
-	} catch (CsrfException $e) {
-		$statusCode = 403;
-		Weather::log('CSRF validation failed', $ip);
-		$content .= Weather::errorAlert($e->getMessage());
-	} catch (UserFacingException $e) {
-		$statusCode = 400;
-		Weather::log('User-facing error: ' . $e->getMessage(), $ip, $city);
-		$content .= Weather::errorAlert($e->getMessage());
-	} catch (InvalidArgumentException $e) {
-		$statusCode = 400;
-		Weather::log('Validation error: ' . $e->getMessage(), $ip, $city);
-		$content .= Weather::errorAlert($e->getMessage());
-	} catch (Throwable $e) {
-		Weather::log('Unhandled error: ' . $e->getMessage(), $ip);
-		$statusCode = 500;
-		$content .= Weather::errorAlert('Something went wrong. Please try again later.');
-	}
+    } catch (RateLimitExceededException $e) {
+        $statusCode = 429;
+        Weather::log('Rate limit exceeded', $ip);
+        $content .= Weather::errorAlert($e->getMessage());
+    } catch (CsrfException $e) {
+        $statusCode = 403;
+        Weather::log('CSRF validation failed', $ip);
+        $content .= Weather::errorAlert($e->getMessage());
+    } catch (UserFacingException $e) {
+        $statusCode = 400;
+        Weather::log('User-facing error: ' . $e->getMessage(), $ip, $city);
+        $content .= Weather::errorAlert($e->getMessage());
+    } catch (InvalidArgumentException $e) {
+        $statusCode = 400;
+        Weather::log('Validation error: ' . $e->getMessage(), $ip, $city);
+        $content .= Weather::errorAlert($e->getMessage());
+    } catch (Throwable $e) {
+        Weather::log('Unhandled error: ' . $e->getMessage(), $ip);
+        $statusCode = 500;
+        $content .= Weather::errorAlert('Something went wrong. Please try again later.');
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -183,15 +190,32 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // return only the result fragment instead of the full HTML page.
 // ---------------------------------------------------------------------------
 $acceptsJson = ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest'
-	|| ($_GET['format'] ?? '') === 'json';
+    || ($_GET['format'] ?? '') === 'json';
 if ($acceptsJson) {
-	if (!headers_sent()) {
-		header('Content-Type: application/json');
-		header('Cache-Control: no-store, no-cache, must-revalidate');
-		http_response_code($statusCode);
-	}
-	echo json_encode(['status' => $statusCode, 'html' => $content]);
-	exit;
+    if (!headers_sent()) {
+        header('Content-Type: application/json');
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+        http_response_code($statusCode);
+    }
+    echo json_encode(['status' => $statusCode, 'html' => $content]);
+    exit;
+}
+
+// Security & caching headers — must be emitted before any HTML body.
+if (!headers_sent()) {
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('Content-Security-Policy: '
+        . "default-src 'self'; "
+        . "style-src 'self' https://cdn.jsdelivr.net https://api.fontshare.com 'unsafe-inline'; "
+        . "script-src 'self' https://cdn.jsdelivr.net; "
+        . "font-src 'self' https://api.fontshare.com; "
+        . "img-src 'self' data:; "
+        . "connect-src 'self'");
+    http_response_code($statusCode);
 }
 ?>
 <!DOCTYPE html>
@@ -223,19 +247,3 @@ if ($acceptsJson) {
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"></script>
 </body>
 </html>
-<?php
-// Security & caching headers — must be emitted before any HTML body.
-header('Content-Type: text/html; charset=utf-8');
-header('Cache-Control: no-store, no-cache, must-revalidate');
-header('Pragma: no-cache');
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
-header("Content-Security-Policy: "
-	. "default-src 'self'; "
-	. "style-src 'self' https://cdn.jsdelivr.net https://api.fontshare.com 'unsafe-inline'; "
-	. "script-src 'self' https://cdn.jsdelivr.net; "
-	. "font-src 'self' https://api.fontshare.com; "
-	. "img-src 'self' data:; "
-	. "connect-src 'self'");
-http_response_code($statusCode);
-?>

@@ -23,7 +23,18 @@ const SHELL_URLS = [
 self.addEventListener('install', function (event) {
 	event.waitUntil(
 		caches.open(CACHE_NAME)
-			.then(function (cache) { return cache.addAll(SHELL_URLS); })
+			.then(function (cache) {
+				// cache.addAll() is all-or-nothing: one flaky CDN request
+				// (Bootstrap/Fontshare) would fail the whole install and
+				// silently leave offline support off for that visit. Cache
+				// each URL independently so a single miss doesn't sink the
+				// rest of the shell.
+				return Promise.all(SHELL_URLS.map(function (url) {
+					return cache.add(url).catch(function (err) {
+						console.warn('[sw] failed to precache', url, err);
+					});
+				}));
+			})
 			.then(function () { return self.skipWaiting(); })
 	);
 });
@@ -76,17 +87,32 @@ self.addEventListener('fetch', function (event) {
 	}
 
 	// Static shell assets (same-origin, plus the precached CDN stylesheets):
-	// cache-first, refreshing the cache in the background on a network hit.
+	// stale-while-revalidate — serve the cached copy immediately when there
+	// is one, and refresh it in the background so a later visit picks up a
+	// changed asset without needing a manual CACHE_NAME bump.
 	event.respondWith(
 		caches.match(request).then(function (cached) {
-			if (cached) { return cached; }
-			return fetch(request).then(function (response) {
+			const networkFetch = fetch(request).then(function (response) {
 				if (response.ok && (isSameOrigin || SHELL_URLS.indexOf(request.url) !== -1)) {
 					const copy = response.clone();
-					caches.open(CACHE_NAME).then(function (cache) { cache.put(request, copy); });
+					// Track the cache write itself via waitUntil — without this,
+					// it's a dangling promise the browser can cut short as soon
+					// as networkFetch (and, on a cache hit, its own waitUntil
+					// below) settle, before the write actually lands.
+					event.waitUntil(
+						caches.open(CACHE_NAME)
+							.then(function (cache) { return cache.put(request, copy); })
+							.catch(function () { /* best-effort cache write */ })
+					);
 				}
 				return response;
 			});
+
+			if (cached) {
+				event.waitUntil(networkFetch.catch(function () { /* offline refresh attempt; ignore */ }));
+				return cached;
+			}
+			return networkFetch;
 		})
 	);
 });

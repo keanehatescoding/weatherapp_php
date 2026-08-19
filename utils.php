@@ -9,10 +9,10 @@ declare(strict_types=1);
  */
 
 if (!function_exists('esc')) {
-	/**
-	 * Escape a value for safe HTML output (UTF-8).
-	 */
-	function esc($value): string {
-		return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-	}
+    /**
+     * Escape a value for safe HTML output (UTF-8).
+     */
+    function esc($value): string {
+        return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
 }

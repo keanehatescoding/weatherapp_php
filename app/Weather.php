@@ -161,7 +161,7 @@ class Weather {
         if ($gStatus !== 200) {
             $this->throwApiError($gStatus, $geo, $city, 'geocode');
         }
-        if (!is_array($geo) || $geo === [] || !isset($geo[0]['lat'], $geo[0]['lon'])) {
+        if ($geo === [] || !isset($geo[0]['lat'], $geo[0]['lon'])) {
             throw new UserFacingException('City not found. Please check the spelling and try again.');
         }
         $g = $geo[0];
@@ -188,7 +188,7 @@ class Weather {
         // Best-effort: label the result with a human-readable place name.
         try {
             [$rStatus, $rev] = self::fetchJson($this->reverseGeocodeUrl($lat, $lon));
-            if ($rStatus === 200 && is_array($rev) && isset($rev[0])) {
+            if ($rStatus === 200 && isset($rev[0])) {
                 $name    = $rev[0]['name'] ?? '';
                 $country = $rev[0]['country'] ?? '';
             }
@@ -212,7 +212,7 @@ class Weather {
         if ($oStatus !== 200) {
             $this->throwApiError($oStatus, $one, $ctx, 'onecall');
         }
-        if (!is_array($one) || !isset($one['current'], $one['daily'])) {
+        if (!is_array($one['current'] ?? null) || !is_array($one['daily'] ?? null)) {
             throw new UserFacingException('Weather service returned an unexpected response. Please try again later.');
         }
         return [
@@ -238,9 +238,12 @@ class Weather {
     private function throwApiError(int $status, array $payload, string $city, string $stage): void {
         Weather::log(ucfirst($stage) . ' API HTTP ' . $status . ': ' . ($payload['message'] ?? ''), $this->ip, $city);
         if ($status === 401) {
-            throw new UserFacingException(
-                'Weather API key was rejected by the provider. Verify your OPENWEATHERMAP_API_KEY.'
-            );
+            $message = 'Weather API key was rejected by the provider. Verify your OPENWEATHERMAP_API_KEY';
+            $message .= $stage === 'onecall'
+                ? ', and make sure it is subscribed to the One Call API 3.0 product in your OpenWeatherMap '
+                    . 'dashboard — a valid key for other endpoints can still be unsubscribed from this one.'
+                : '.';
+            throw new UserFacingException($message);
         }
         if ($status === 404 || $status === 400) {
             throw new UserFacingException('City not found. Please check the spelling and try again.');
