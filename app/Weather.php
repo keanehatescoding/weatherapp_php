@@ -212,7 +212,7 @@ class Weather {
         if ($oStatus !== 200) {
             $this->throwApiError($oStatus, $one, $ctx, 'onecall');
         }
-        if (!isset($one['current'], $one['daily'])) {
+        if (!is_array($one['current'] ?? null) || !is_array($one['daily'] ?? null)) {
             throw new UserFacingException('Weather service returned an unexpected response. Please try again later.');
         }
         return [
@@ -238,16 +238,12 @@ class Weather {
     private function throwApiError(int $status, array $payload, string $city, string $stage): void {
         Weather::log(ucfirst($stage) . ' API HTTP ' . $status . ': ' . ($payload['message'] ?? ''), $this->ip, $city);
         if ($status === 401) {
-            if ($stage === 'onecall') {
-                throw new UserFacingException(
-                    'Weather API key was rejected by the provider. Verify your OPENWEATHERMAP_API_KEY, '
-                    . 'and make sure it is subscribed to the One Call API 3.0 product in your OpenWeatherMap '
+            $message = 'Weather API key was rejected by the provider. Verify your OPENWEATHERMAP_API_KEY';
+            $message .= $stage === 'onecall'
+                ? ', and make sure it is subscribed to the One Call API 3.0 product in your OpenWeatherMap '
                     . 'dashboard — a valid key for other endpoints can still be unsubscribed from this one.'
-                );
-            }
-            throw new UserFacingException(
-                'Weather API key was rejected by the provider. Verify your OPENWEATHERMAP_API_KEY.'
-            );
+                : '.';
+            throw new UserFacingException($message);
         }
         if ($status === 404 || $status === 400) {
             throw new UserFacingException('City not found. Please check the spelling and try again.');

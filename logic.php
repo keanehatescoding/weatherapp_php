@@ -33,9 +33,10 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $ip      = Weather::clientIp();
-$apiKey  = getenv('OPENWEATHERMAP_API_KEY');
+$rawKey  = getenv('OPENWEATHERMAP_API_KEY');
+$apiKey  = $rawKey === false ? '' : (string)$rawKey;
 $units   = ($_POST['unit'] ?? 'metric') === 'imperial' ? 'imperial' : 'metric';
-$weather = new Weather($ip, $apiKey === false ? '' : (string)$apiKey, '', $units);
+$weather = new Weather($ip, $apiKey, '', $units);
 
 // --- Request handling ----------------------------------------------------
 $content     = '';
@@ -47,7 +48,10 @@ $city        = '';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     $statusCode = 405;
-    $content    = Weather::errorAlert('Method ' . $_SERVER['REQUEST_METHOD'] . ' not allowed.');
+    if (!headers_sent()) {
+        header('Allow: POST');
+    }
+    $content = Weather::errorAlert('Method ' . $_SERVER['REQUEST_METHOD'] . ' not allowed.');
 } else {
     try {
         // CSRF protection (token issued by csrf.php, embedded by JS).
@@ -77,8 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
         $weather->enforceRateLimit();
 
-        $apiKey = getenv('OPENWEATHERMAP_API_KEY');
-        if ($apiKey === false || $apiKey === '') {
+        if ($apiKey === '') {
             throw new UserFacingException(
                 'Weather API key is not configured. Set the OPENWEATHERMAP_API_KEY environment variable.'
             );
@@ -199,19 +202,21 @@ if ($acceptsJson) {
 }
 
 // Security & caching headers — must be emitted before any HTML body.
-header('Content-Type: text/html; charset=utf-8');
-header('Cache-Control: no-store, no-cache, must-revalidate');
-header('Pragma: no-cache');
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
-header('Content-Security-Policy: '
-    . "default-src 'self'; "
-    . "style-src 'self' https://cdn.jsdelivr.net https://api.fontshare.com 'unsafe-inline'; "
-    . "script-src 'self' https://cdn.jsdelivr.net; "
-    . "font-src 'self' https://api.fontshare.com; "
-    . "img-src 'self' data:; "
-    . "connect-src 'self'");
-http_response_code($statusCode);
+if (!headers_sent()) {
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('Content-Security-Policy: '
+        . "default-src 'self'; "
+        . "style-src 'self' https://cdn.jsdelivr.net https://api.fontshare.com 'unsafe-inline'; "
+        . "script-src 'self' https://cdn.jsdelivr.net; "
+        . "font-src 'self' https://api.fontshare.com; "
+        . "img-src 'self' data:; "
+        . "connect-src 'self'");
+    http_response_code($statusCode);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
