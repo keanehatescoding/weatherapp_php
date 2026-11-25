@@ -110,11 +110,28 @@ jobs:
         run: |
           base="$BASE_SHA"
           head="$HEAD_SHA"
-          # New branches report an all-zero "before" SHA on push; fall back to the parent.
-          if [[ -z $base || $base =~ ^0+$ ]]; then base=$(git rev-parse HEAD^ 2>/dev/null || git rev-parse HEAD); fi
           [[ -n $head ]] || head=$(git rev-parse HEAD)
-          echo "Scanning ${base}..${head}"
-          gitleaks detect --redact --exit-code 1 --log-opts="${base}..${head}"
+
+          # A base is only usable if it is non-empty, not the all-zero SHA that
+          # GitHub reports for new branches, and actually present in the checkout.
+          # A force-push can make push.before unreachable; scanning against it
+          # would fail the workflow even though there is nothing wrong with the code.
+          valid_base=false
+          if [[ -n $base ]] && [[ ! $base =~ ^0+$ ]] && git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            valid_base=true
+          fi
+
+          if [[ $valid_base == true ]]; then
+            # PRs and ordinary pushes: scan exactly the changed range.
+            log_opts="${base}..${head}"
+            echo "Scanning ${log_opts}"
+          else
+            # No usable base (new/root-only branch or unreachable before SHA):
+            # scan the full history through head, including the first commit.
+            log_opts="${head}"
+            echo "No valid base; scanning full history through ${head}"
+          fi
+          gitleaks detect --redact --verbose --exit-code 1 --log-opts="${log_opts}"
       - name: Check for leftover secrets / obvious issues
         run: |
           echo "Scanning for accidentally committed API keys..."
