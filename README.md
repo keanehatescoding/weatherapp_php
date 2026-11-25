@@ -101,7 +101,26 @@ docker compose up --build
 ```
 
 The service is exposed on <http://localhost:8000>. Provide the API key through
-your environment (or a `.env` file) as described above.
+your environment (or a `.env` file) as described above. This now uses a
+production-style image: nginx serves the static files and passes `.php`
+requests to php-fpm, with `/health.php` as the container health check.
+
+### Deploying
+
+Master builds and publishes `ghcr.io/keanehatescoding/weatherapp-php` from this
+repository after the test, quality and security jobs pass. Run it with:
+
+```bash
+docker run -d -p 8080:80 \
+  -e OPENWEATHERMAP_API_KEY=... \
+  ghcr.io/keanehatescoding/weatherapp-php:latest
+```
+
+Set `TRUSTED_PROXIES` as well when the app sits behind a load balancer or CDN.
+Secrets stay in the deployment environment; `.env.example` documents the shape
+but no `.env` is baked into the image. The image exposes port 80 and its
+health check calls `/health.php`; put the container behind a TLS-terminating
+reverse proxy in production.
 
 ---
 
