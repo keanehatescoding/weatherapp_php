@@ -35,8 +35,10 @@ if (session_status() === PHP_SESSION_NONE) {
 $ip      = Weather::clientIp();
 $rawKey  = getenv('OPENWEATHERMAP_API_KEY');
 $apiKey  = $rawKey === false ? '' : (string)$rawKey;
+$rawBase = getenv('OPENWEATHERMAP_BASE_URL');
+$baseUrl = $rawBase === false ? '' : (string)$rawBase;
 $units   = ($_POST['unit'] ?? 'metric') === 'imperial' ? 'imperial' : 'metric';
-$weather = new Weather($ip, $apiKey, '', $units);
+$weather = new Weather($ip, $apiKey, $baseUrl, $units);
 
 // --- Request handling ----------------------------------------------------
 $content     = '';
@@ -98,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         $country    = $meta['country'];
         $weatherArr = $current['weather'][0] ?? [];
         $deg        = $units === 'imperial' ? '°F' : '°C';
+        $windUnit   = $units === 'imperial' ? 'mph' : 'm/s';
 
         $locNow       = time() + $tzOff;
         $sunriseLocal = isset($current['sunrise']) ? (int)$current['sunrise'] + $tzOff : null;
@@ -121,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         $weatherHtml .= '<div class="col-6 mb-2">';
         $weatherHtml .= '<p class="mb-1"><strong>Pressure:</strong> ' . Weather::esc((int)($current['pressure'] ?? 0)) . ' hPa</p>';
         $weatherHtml .= '<p class="mb-1"><strong>Wind:</strong> '
-            . Weather::esc(round((float)($current['wind_speed'] ?? 0), 1)) . ' m/s</p>';
+            . Weather::esc(round((float)($current['wind_speed'] ?? 0), 1)) . ' ' . $windUnit . '</p>';
         $weatherHtml .= '<p class="mb-1"><strong>Sunrise:</strong> '
             . ($sunriseLocal !== null ? Weather::esc(gmdate('g:i a', $sunriseLocal)) : '—') . '</p>';
         $weatherHtml .= '<p class="mb-1"><strong>Sunset:</strong> '
